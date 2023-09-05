@@ -1,4 +1,4 @@
-use live_table::App;
+use live_lesson::App;
 
 
 
