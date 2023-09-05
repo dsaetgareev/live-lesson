@@ -1,0 +1,76 @@
+use anyhow::anyhow;
+
+use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, BlockEncryptMut, KeyIvInit};
+use rand::RngCore;
+
+type Aes128CbcEnc = cbc::Encryptor<aes::Aes128>;
+type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Aes128State {
+    pub enabled: bool,
+    pub key: [u8; 16],
+    pub iv: [u8; 16],
+}
+
+impl Aes128State {
+    pub fn new(enabled: bool) -> Self {
+        if enabled {
+            Self::new_random()
+        } else {
+            Self {
+                enabled,
+                key: [0u8; 16],
+                iv: [0u8; 16],
+            }
+        }
+    }
+
+    fn new_random() -> Self {
+        let mut rng = rand::thread_rng();
+        let mut key = [0u8; 16];
+        let mut iv = [0u8; 16];
+        rng.fill_bytes(&mut key);
+        rng.fill_bytes(&mut iv);
+        Self {
+            enabled: true,
+            key,
+            iv,
+        }
+    }
+
+    pub fn from_vecs(key: Vec<u8>, iv: Vec<u8>, enabled: bool) -> Self {
+        let mut key_arr = [0u8; 16];
+        let mut iv_arr = [0u8; 16];
+        key_arr.copy_from_slice(&key);
+        iv_arr.copy_from_slice(&iv);
+        Self {
+            enabled,
+            key: key_arr,
+            iv: iv_arr,
+        }
+    }
+
+    pub fn encrypt(&self, data: &[u8]) -> anyhow::Result<Vec<u8>> {
+        if !self.enabled {
+            // XXX: Don't make a new copy of data.
+            return Ok(data.to_vec());
+        }
+        let cipher = Aes128CbcEnc::new_from_slices(&self.key, &self.iv)
+            .map_err(|e| anyhow!("{}", e.to_string()))?;
+        Ok(cipher.encrypt_padded_vec_mut::<Pkcs7>(data))
+    }
+
+    pub fn decrypt(&self, data: &[u8]) -> anyhow::Result<Vec<u8>> {
+        if !self.enabled {
+            // XXX: Don't make a new copy of data.
+            return Ok(data.to_vec());
+        }
+        let decipher = Aes128CbcDec::new_from_slices(&self.key, &self.iv)
+            .map_err(|e| anyhow!("Decryptor Initialization error! {}", e.to_string()))?;
+        decipher
+            .decrypt_padded_vec_mut::<Pkcs7>(data)
+            .map_err(|e| anyhow!("Decrypt error! {}", e.to_string()))
+    }
+}
+
