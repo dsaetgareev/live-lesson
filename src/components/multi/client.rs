@@ -14,6 +14,7 @@ use crate::encoders::camera_encoder::CameraEncoder;
 use crate::crypto::aes::Aes128State;
 use crate::utils::device::{create_video_decoder, create_audio_decoder};
 use crate::utils::inputs::Message;
+use crate::utils::inputs::ClientMessage;
 use crate::utils;
 use crate::wrappers::{EncodedVideoChunkTypeWrapper, EncodedAudioChunkTypeWrapper};
 use crate::media_devices::device_selector::DeviceSelector;
@@ -156,7 +157,8 @@ impl Component for Client {
                             Message::HostVideo { 
                                 message,
                                 chunk_type,
-                                timestamp
+                                timestamp,
+                                duration
                             } => {
                                 let chunk_type = EncodedVideoChunkTypeWrapper::from(chunk_type.as_str()).0;
                                 let video_data = Uint8Array::new_with_length(message.len().try_into().unwrap());
@@ -170,8 +172,10 @@ impl Component for Client {
                                 let video_message = video_vector.as_mut();
                                 chunk.copy_to_with_u8_array(video_message);
                                 let data = Uint8Array::from(video_message.as_ref());
+                                let mut encoded_chunk_init = EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_());
+                                encoded_chunk_init.duration(duration);
                                 let encoded_video_chunk = EncodedVideoChunk::new(
-                                    &EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_())
+                                    &encoded_chunk_init
                                 ).unwrap();
                                 match decoder.state() {
                                     web_sys::CodecState::Unconfigured => {
@@ -189,7 +193,8 @@ impl Component for Client {
                             Message::HostScreenShare { 
                                 message,
                                 chunk_type,
-                                timestamp
+                                timestamp,
+                                duration,
                             } => {
                                 *is_screen_share.borrow_mut() = true;
                                 let chunk_type = EncodedVideoChunkTypeWrapper::from(chunk_type.as_str()).0;
@@ -204,8 +209,10 @@ impl Component for Client {
                                 let video_message = video_vector.as_mut();
                                 chunk.copy_to_with_u8_array(video_message);
                                 let data = Uint8Array::from(video_message.as_ref());
+                                let mut encoded_chunk_init = EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_());
+                                encoded_chunk_init.duration(duration);
                                 let encoded_video_chunk = EncodedVideoChunk::new(
-                                    &EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_())
+                                    &encoded_chunk_init
                                 ).unwrap();
                                 match screen_share_decoder.state() {
                                     web_sys::CodecState::Unconfigured => {
@@ -280,7 +287,9 @@ impl Component for Client {
         match msg {
             Msg::UpdateValue => match utils::dom::get_text_area_from_noderef(&self.client_area) {
                 Ok(text_area) => {
-                    let _ = self.mini_client.send_message_to_host(&text_area.value());
+                    let message = ClientMessage::ClientText { message: text_area.value() };
+                    let message = serde_json::to_string(&message).unwrap();
+                    let _ = self.mini_client.send_message_to_host(&message);
                     true
                 }
                 Err(err) => {
@@ -289,7 +298,6 @@ impl Component for Client {
                 }
             },
             Msg::VideoDeviceChanged(video) => {
-                log::info!("video {}", video.clone());
                 if self.camera.select(video) {
                     log::info!("selected");
                     let link = ctx.link().clone();
@@ -308,7 +316,6 @@ impl Component for Client {
                 let ms = self.mini_client.clone();
                 let on_frame = move |chunk: web_sys::EncodedVideoChunk| {
                     let duration = chunk.duration().expect("no duration video chunk");
-                    log::info!("durateion {:?}", duration);
                     let mut buffer: [u8; 100000] = [0; 100000];
                     let byte_length = chunk.byte_length() as usize;
                     chunk.copy_to_with_u8_array(&mut buffer);
@@ -316,10 +323,12 @@ impl Component for Client {
                     let chunk_type = EncodedVideoChunkTypeWrapper(chunk.type_()).to_string();
                     let timestamp = chunk.timestamp();
                     // let data = aes.encrypt(&data).unwrap();
-                    let message = Message::HostVideo { 
+                    
+                    let message = ClientMessage::ClientVideo { 
                         message: data,
                         chunk_type,
                         timestamp,
+                        duration
                     };
                     match serde_json::to_string(&message) {
                         Ok(message) => {
@@ -337,7 +346,9 @@ impl Component for Client {
                 log::info!("camera started");
                 false
             },
-            Msg::AudioDeviceChanged(audio) => todo!(),
+            Msg::AudioDeviceChanged(audio) => {
+                false
+            },
         }
     }
 
@@ -347,7 +358,6 @@ impl Component for Client {
         let placeholder = "This is a live document shared with other users.\nYou will be allowed \
                            to write once other join, or your connection is established.";
         let is_screen = self.is_screen_share.borrow();
-        log::info!("self is screen {}", self.is_screen_share.borrow().clone());
 
         let mic_callback = ctx.link().callback(Msg::AudioDeviceChanged);
         let cam_callback = ctx.link().callback(Msg::VideoDeviceChanged);

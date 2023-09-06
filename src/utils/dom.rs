@@ -1,4 +1,5 @@
 use wasm_bindgen::JsCast;
+use wasm_peers::UserId;
 use web_sys::{Element, HtmlInputElement, HtmlTextAreaElement, UrlSearchParams, Window, HtmlElement};
 use yew::NodeRef;
 
@@ -63,4 +64,9 @@ pub fn get_text_area_from_noderef(node_ref: &NodeRef) -> Result<HtmlTextAreaElem
             crate::Error::UnexpectedElement(format!("not element node ref: {:?}", err))
         });
     text_area
+}
+
+pub fn create_video_id(user_id: String) -> String {
+    let video_id = format!("video_{}", user_id);
+    video_id
 }

@@ -15,11 +15,13 @@ pub enum Message {
         message: Vec<u8>,
         chunk_type: String,
         timestamp: f64,
+        duration: f64,
     },
     HostScreenShare {
         message: Vec<u8>,
         chunk_type: String,
         timestamp: f64,
+        duration: f64
     },
     HostAudio {
         message: Vec<u8>,
@@ -39,5 +41,6 @@ pub enum ClientMessage {
         message: Vec<u8>,
         chunk_type: String,
         timestamp: f64,
+        duration: f64,
     },
 }

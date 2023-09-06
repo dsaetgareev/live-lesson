@@ -16,11 +16,11 @@ pub const AUDIO_SAMPLE_RATE: u32 = 48000u32;
 pub const AUDIO_BITRATE: f64 = 50000f64;
 
 // vga resolution
-// pub const VIDEO_HEIGHT: i32 = 480i32;
-// pub const VIDEO_WIDTH: i32 = 640i32;
+pub const VIDEO_HEIGHT: i32 = 480i32;
+pub const VIDEO_WIDTH: i32 = 640i32;
 
-pub const VIDEO_HEIGHT: i32 = 1080i32;
-pub const VIDEO_WIDTH: i32 = 1920i32;
+// pub const VIDEO_HEIGHT: i32 = 1080i32;
+// pub const VIDEO_WIDTH: i32 = 1920i32;
 
 pub const RSA_BITS: usize = 1024;
 

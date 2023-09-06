@@ -1,10 +1,11 @@
 use std::{collections::HashMap, cell::RefCell, rc::Rc};
 
+use gloo_timers::callback::Timeout;
 use js_sys::Uint8Array;
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
-use web_sys::{EncodedVideoChunk, EncodedVideoChunkInit};
+use web_sys::{EncodedVideoChunk, EncodedVideoChunkInit, VideoDecoder};
 
-use crate::{utils, utils::{inputs::{Message, ClientMessage}, device::create_video_decoder}, wrappers::EncodedVideoChunkTypeWrapper};
+use crate::{utils, utils::{inputs::{Message, ClientMessage}, device::create_video_decoder, dom::create_video_id}, wrappers::EncodedVideoChunkTypeWrapper};
 
 const TEXTAREA_ID: &str = "document-textarea";
 const TEXTAREA_ID_CLIENT: &str = "client-textarea";
@@ -12,6 +13,7 @@ const TEXTAREA_ID_CLIENT: &str = "client-textarea";
 
 pub struct HostManager {
     pub players: Rc<RefCell<HashMap<UserId, String>>>,
+    pub decoders: Rc<RefCell<HashMap<UserId, Rc<RefCell<VideoDecoder>>>>>,
     pub mini_server: MiniServer,
 }
 
@@ -24,9 +26,11 @@ impl HostManager {
         let mini_server = MiniServer::new(signaling_server_url, session_id, connection_type)
         .expect("failed to create network manager");
         let players = Rc::new(RefCell::new(HashMap::new()));
+        let decoders = Rc::new(RefCell::new(HashMap::new()));
         Self { 
             mini_server,
-            players: players,
+            players,
+            decoders
          }
     }
 
@@ -35,6 +39,7 @@ impl HostManager {
         let on_open_callback = {
             let mini_server = self.mini_server.clone();
             let players = self.players.clone();
+            let decoders = self.decoders.clone();
             move |user_id| {
                 let text_area = match utils::dom::get_text_area(TEXTAREA_ID) {
                     Ok(text_area) => text_area,
@@ -58,17 +63,16 @@ impl HostManager {
                         .expect("failed to send current input to new connection");
                 }
                 players.borrow_mut().insert(user_id, String::default());
+                let video_id = create_video_id(user_id.into_inner().to_string());
+                decoders.borrow_mut().insert(user_id, Rc::new(RefCell::new(create_video_decoder(video_id))));
             }
         };
 
-        let video_decoder = create_video_decoder("render".to_owned());
         let on_message_callback = {
             let players = self.players.clone();
-            let video_decoder = video_decoder.clone();
+            let decoders = self.decoders.clone();
             move |user_id: UserId, message: String| {
-                // let input = serde_json::from_str::<PlayerInput>(&message).unwrap();
-                log::info!("input {}", message);
-                log::info!("user_id {}", user_id);           
+                // let input = serde_json::from_str::<PlayerInput>(&message).unwrap();      
                 let _ = match serde_json::from_str::<ClientMessage>(&message) {
                     Ok(input) => {
                         match input {
@@ -90,7 +94,8 @@ impl HostManager {
                             ClientMessage::ClientVideo { 
                                 message,
                                 chunk_type,
-                                timestamp 
+                                timestamp ,
+                                duration,
                             } => {
                                 let chunk_type = EncodedVideoChunkTypeWrapper::from(chunk_type.as_str()).0;
                                 let video_data = Uint8Array::new_with_length(message.len().try_into().unwrap());
@@ -104,9 +109,13 @@ impl HostManager {
                                 let video_message = video_vector.as_mut();
                                 chunk.copy_to_with_u8_array(video_message);
                                 let data = Uint8Array::from(video_message.as_ref());
+                                let mut encoded_chunk_init = EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_());
+                                encoded_chunk_init.duration(duration);
                                 let encoded_video_chunk = EncodedVideoChunk::new(
-                                    &EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_())
+                                    &encoded_chunk_init
                                 ).unwrap();
+                                let video_decoder = decoders.borrow().get(&user_id).unwrap().clone();
+                                let video_decoder = video_decoder.borrow();
                                 match video_decoder.state() {
                                     web_sys::CodecState::Unconfigured => {
                                         log::info!("video decoder unconfigured");

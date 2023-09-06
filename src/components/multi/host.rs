@@ -14,6 +14,7 @@ use crate::encoders::camera_encoder::CameraEncoder;
 use crate::crypto::aes::Aes128State;
 use crate::media_devices::device_selector::DeviceSelector;
 use crate::components::multi::host_manager::HostManager;
+use crate::utils::dom::create_video_id;
 use crate::utils::inputs::Message;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
 use crate::encoders::screen_encoder::ScreenEncoder;
@@ -114,7 +115,6 @@ impl Component for Host {
                     let message = serde_json::to_string(&message).unwrap();
                     self.host_manager.as_ref().unwrap().mini_server.send_message_to_all(&message);
                     let lenghtn = self.host_manager.as_ref().unwrap().players.borrow().len();
-                    log::info!("players len {}", lenghtn);
                     true
                 }
                 Err(err) => {
@@ -124,12 +124,11 @@ impl Component for Host {
             },
             Self::Message::Tick => {
                 let time = Date::new_0().get_milliseconds() as f64;
-                log::info!("ticking {}", time);
-                if let Err(error) = get_window().unwrap().request_animation_frame(
-                    self.tick_callback.as_ref().unchecked_ref(),
-                ) {
-                    error!("Failed requesting next animation frame: {error:?}");
-                }
+                // if let Err(error) = get_window().unwrap().request_animation_frame(
+                //     self.tick_callback.as_ref().unchecked_ref(),
+                // ) {
+                //     error!("Failed requesting next animation frame: {error:?}");
+                // }
                 true
             },
             Self::Message::ChooseItem(client_id) => {
@@ -192,7 +191,6 @@ impl Component for Host {
                 let ms = self.host_manager.as_ref().unwrap().mini_server.clone();
                 let on_frame = move |chunk: web_sys::EncodedVideoChunk| {
                     let duration = chunk.duration().expect("no duration video chunk");
-                    log::info!("durateion {:?}", duration);
                     let mut buffer: [u8; 100000] = [0; 100000];
                     let byte_length = chunk.byte_length() as usize;
                     chunk.copy_to_with_u8_array(&mut buffer);
@@ -204,6 +202,7 @@ impl Component for Host {
                         message: data,
                         chunk_type,
                         timestamp,
+                        duration
                     };
                     match serde_json::to_string(&message) {
                         Ok(message) => {
@@ -211,7 +210,6 @@ impl Component for Host {
                         },
                         Err(_) => todo!(),
                     };
-                    // log::info!("data {:?}", data);
                     
                 };
                 self.camera.start(
@@ -219,10 +217,10 @@ impl Component for Host {
                     on_frame,
                     VIDEO_ELEMENT_ID,
                 );
-                log::info!("camera started");
                 false
             },
             Self::Message::EnableScreenShare(should_enable) => {
+                ctx.link().send_message(Msg::EnableVideo(false));
                 if !should_enable {
                     return true;
                 }
@@ -230,6 +228,7 @@ impl Component for Host {
                 let aes = self.aes.clone();
                 let ms = self.host_manager.as_ref().unwrap().mini_server.clone();
                 let on_frame = move |chunk: web_sys::EncodedVideoChunk| {
+                    let duration = chunk.duration().expect("no duration video chunk");
                     let mut buffer: [u8; 100000] = [0; 100000];
                     let byte_length = chunk.byte_length() as usize;
                     chunk.copy_to_with_u8_array(&mut buffer);
@@ -237,11 +236,11 @@ impl Component for Host {
                     let chunk_type = EncodedVideoChunkTypeWrapper(chunk.type_()).to_string();
                     let timestamp = chunk.timestamp();
                     // let data = aes.encrypt(&data).unwrap();
-                    log::info!("data {:?}", data);
                     let message = Message::HostScreenShare { 
                         message: data,
                         chunk_type,
                         timestamp,
+                        duration
                     };
                     match serde_json::to_string(&message) {
                         Ok(message) => {
@@ -254,11 +253,9 @@ impl Component for Host {
                     "email".to_owned(),
                     on_frame,
                 );
-                log::info!("camera started");
                 false
             },
             Self::Message::EnableMicrophone(should_enable) => {
-                log::info!("im microphone");
                 if !should_enable {
                     return true;
                 }
@@ -295,7 +292,6 @@ impl Component for Host {
                     "email".to_owned(),
                     on_audio
                 );
-                log::info!("microphone started");
                 false
             }
             Msg::AudioDeviceChanged(audio) => {
@@ -309,9 +305,7 @@ impl Component for Host {
                 false
             }
             Msg::VideoDeviceChanged(video) => {
-                log::info!("video {}", video.clone());
                 if self.camera.select(video) {
-                    log::info!("selected");
                     let link = ctx.link().clone();
                     let timeout = Timeout::new(1000, move || {
                         link.send_message(Msg::EnableVideo(true));
@@ -332,17 +326,18 @@ impl Component for Host {
                 .dyn_into()
                 .unwrap();
             let client_id = target.get_attribute("client_id").unwrap();
-            log::info!("client_id {}", client_id.clone());
             
             Msg::ChooseItem(client_id)
         });
 
         let render_item = |key: String, value: String| {
             let client_id = key.clone();
+            let video_id = create_video_id(key.clone());
             html! {
                     <>
                         <div client_id={ client_id.clone() } class="col" onclick={ item_click.clone() }>
                             <textarea id={ key } client_id={ client_id } value={ value } class="doc-item" cols="100" rows="30" />
+                            <canvas id={ video_id } class="client_canvas" ></canvas>
                         </div>
                     </>
             }
@@ -402,7 +397,6 @@ impl Component for Host {
                 </div>
                 <div class="consumer">
                     <h3>{"Consumer!"}</h3>
-                    <canvas id="render" class="client_canvas" ></canvas>
                     <video class="self-camera" autoplay=true id={VIDEO_ELEMENT_ID}></video>
                 </div>
                 

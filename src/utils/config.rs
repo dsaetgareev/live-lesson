@@ -2,7 +2,6 @@ use js_sys::Array;
 use serde::Deserialize;
 use web_sys::{AudioContext, AudioContextOptions, OscillatorType};
 use web_sys::{MediaStream, MediaStreamTrackGenerator};
-use wasm_bindgen::prelude::*;
 
 use crate::constants::AUDIO_SAMPLE_RATE;
 
