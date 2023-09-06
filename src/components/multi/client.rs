@@ -2,25 +2,32 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use js_sys::{Uint8Array, JsString, Reflect};
-use wasm_bindgen::{JsValue, JsCast};
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen_futures::JsFuture;
+use gloo_timers::callback::Timeout;
+use js_sys::Uint8Array;
 use wasm_peers::one_to_many::MiniClient;
 use wasm_peers::{get_random_session_id, ConnectionType, SessionId};
-use web_sys::{EncodedVideoChunkInit, EncodedVideoChunk, VideoDecoder, HtmlImageElement, HtmlCanvasElement, CanvasRenderingContext2d, VideoFrame, VideoDecoderInit, VideoDecoderConfig, EncodedAudioChunkInit, EncodedAudioChunk, MediaStreamTrackGenerator, MediaStreamTrackGeneratorInit, AudioData, AudioDecoder, AudioDecoderInit, AudioDecoderConfig, AudioDataInit};
+use web_sys::{EncodedVideoChunkInit, EncodedVideoChunk, EncodedAudioChunkInit, EncodedAudioChunk};
 use yew::{html, Component, Context, Html, NodeRef};
 use log::error;
 
-use crate::config::configure_audio_context;
-use crate::constants::{VIDEO_CODEC, AUDIO_CODEC, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE};
+use crate::encoders::camera_encoder::CameraEncoder;
 use crate::crypto::aes::Aes128State;
-use crate::inputs::Message;
+use crate::utils::device::{create_video_decoder, create_audio_decoder};
+use crate::utils::inputs::Message;
 use crate::utils;
 use crate::wrappers::{EncodedVideoChunkTypeWrapper, EncodedAudioChunkTypeWrapper};
+use crate::media_devices::device_selector::DeviceSelector;
+
+
+const TEXTAREA_ID: &str = "document-textarea";
+const TEXTAREA_ID_CLIENT: &str = "client-textarea";
+const VIDEO_ELEMENT_ID: &str = "webcam";
 
 pub enum Msg {
     UpdateValue,
+    VideoDeviceChanged(String),
+    EnableVideo(bool),
+    AudioDeviceChanged(String),
 }
 
 pub struct Client {
@@ -28,24 +35,22 @@ pub struct Client {
     host_area: NodeRef,
     client_area: NodeRef,
     is_screen_share: Rc<RefCell<bool>>,
+    camera: CameraEncoder,
 }
-
-const TEXTAREA_ID: &str = "document-textarea";
-const TEXTAREA_ID_CLIENT: &str = "client-textarea";
 
 impl Component for Client {
     type Message = Msg;
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        let query_params = utils::get_query_params_multi();
+        let query_params = utils::dom::get_query_params_multi();
         let session_id =
             match query_params.get("session_id") {
                 Some(session_string) => {
                     SessionId::new(session_string)
                 }
                 _ => {
-                    let location = utils::global_window().location();
+                    let location = utils::dom::global_window().location();
                     let generated_session_id = get_random_session_id();
                     query_params.append("session_id", generated_session_id.as_str());
                     let search: String = query_params.to_string().into();
@@ -74,7 +79,7 @@ impl Component for Client {
             let mini_client = mini_client.clone();
             let is_ready = Rc::clone(&is_ready);
             move || {
-                let text_area = match utils::get_text_area(TEXTAREA_ID) {
+                let text_area = match utils::dom::get_text_area(TEXTAREA_ID) {
                     Ok(text_area) => text_area,
                     Err(err) => {
                         log::error!("failed to get textarea: {:#?}", err);
@@ -117,7 +122,7 @@ impl Component for Client {
                         match input {
                             Message::HostToHost { message } => {
                                 log::info!("input {}", message);   
-                                match utils::get_text_area(TEXTAREA_ID) {
+                                match utils::dom::get_text_area(TEXTAREA_ID) {
                                     Ok(text_area) => {
                                         text_area.set_value(&message);
                                     }
@@ -128,7 +133,7 @@ impl Component for Client {
                             },
                             Message::HostToClient { message } => {
                                 log::info!("input {}", message);   
-                                match utils::get_text_area(TEXTAREA_ID_CLIENT) {
+                                match utils::dom::get_text_area(TEXTAREA_ID_CLIENT) {
                                     Ok(text_area) => {
                                         text_area.set_value(&message);
                                     }
@@ -139,7 +144,7 @@ impl Component for Client {
                             },
                             Message::Init { message } => {
                                 log::info!("message init {}", message);
-                                match utils::get_text_area(TEXTAREA_ID) {
+                                match utils::dom::get_text_area(TEXTAREA_ID) {
                                     Ok(text_area) => {
                                         text_area.set_value(&message);
                                     }
@@ -261,17 +266,19 @@ impl Component for Client {
         };
         
         mini_client.start(on_open_callback, on_message_callback);
+        let aes = Arc::new(Aes128State::new(true));
         Self {
             mini_client,
             host_area,
             client_area,
             is_screen_share,
+            camera: CameraEncoder::new(aes.clone()),
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Self::Message::UpdateValue => match utils::get_text_area_from_noderef(&self.client_area) {
+            Msg::UpdateValue => match utils::dom::get_text_area_from_noderef(&self.client_area) {
                 Ok(text_area) => {
                     let _ = self.mini_client.send_message_to_host(&text_area.value());
                     true
@@ -281,6 +288,56 @@ impl Component for Client {
                     false
                 }
             },
+            Msg::VideoDeviceChanged(video) => {
+                log::info!("video {}", video.clone());
+                if self.camera.select(video) {
+                    log::info!("selected");
+                    let link = ctx.link().clone();
+                    let timeout = Timeout::new(1000, move || {
+                        link.send_message(Msg::EnableVideo(true));
+                    });
+                    timeout.forget();
+                }
+                false
+            }
+            Msg::EnableVideo(should_enable) => {
+                if !should_enable {
+                    return true;
+                }
+
+                let ms = self.mini_client.clone();
+                let on_frame = move |chunk: web_sys::EncodedVideoChunk| {
+                    let duration = chunk.duration().expect("no duration video chunk");
+                    log::info!("durateion {:?}", duration);
+                    let mut buffer: [u8; 100000] = [0; 100000];
+                    let byte_length = chunk.byte_length() as usize;
+                    chunk.copy_to_with_u8_array(&mut buffer);
+                    let data = buffer[0..byte_length].to_vec();
+                    let chunk_type = EncodedVideoChunkTypeWrapper(chunk.type_()).to_string();
+                    let timestamp = chunk.timestamp();
+                    // let data = aes.encrypt(&data).unwrap();
+                    let message = Message::HostVideo { 
+                        message: data,
+                        chunk_type,
+                        timestamp,
+                    };
+                    match serde_json::to_string(&message) {
+                        Ok(message) => {
+                            let _ = ms.send_message_to_host(&message);
+                        },
+                        Err(_) => todo!(),
+                    };
+                    
+                };
+                self.camera.start(
+                    "email".to_owned(),
+                    on_frame,
+                    VIDEO_ELEMENT_ID,
+                );
+                log::info!("camera started");
+                false
+            },
+            Msg::AudioDeviceChanged(audio) => todo!(),
         }
     }
 
@@ -291,6 +348,9 @@ impl Component for Client {
                            to write once other join, or your connection is established.";
         let is_screen = self.is_screen_share.borrow();
         log::info!("self is screen {}", self.is_screen_share.borrow().clone());
+
+        let mic_callback = ctx.link().callback(Msg::AudioDeviceChanged);
+        let cam_callback = ctx.link().callback(Msg::VideoDeviceChanged);
         
         html! {
             <main class="px-3">
@@ -303,8 +363,10 @@ impl Component for Client {
                             <textarea id={ TEXTAREA_ID } ref={ self.host_area.clone() } class="document" cols="100" rows="30" { disabled } { placeholder } />
                         </div>
                     </div>
+                    <DeviceSelector on_microphone_select={mic_callback} on_camera_select={cam_callback}/>
                     <div class="consumer">
                         <h3>{"Consumer!"}</h3>
+                        <video class="self-camera" autoplay=true id={VIDEO_ELEMENT_ID}></video>
                         <canvas id="render" class="client_canvas" ></canvas>
                     </div>
                     <div class="consumer">
@@ -320,97 +382,4 @@ impl Component for Client {
             </main>
         }
     }
-}
-
-fn create_video_decoder(render_id: String) -> VideoDecoder {
-    let error_video = Closure::wrap(Box::new(move |e: JsValue| {
-    }) as Box<dyn FnMut(JsValue)>);
-
-    let output = Closure::wrap(Box::new(move |original_chunk: JsValue| {
-        let chunk = Box::new(original_chunk);
-        let video_chunk = chunk.clone().unchecked_into::<HtmlImageElement>();
-        let width = Reflect::get(&chunk.clone(), &JsString::from("codedWidth"))
-            .unwrap()
-            .as_f64()
-            .unwrap();
-        let height = Reflect::get(&chunk.clone(), &JsString::from("codedHeight"))
-            .unwrap()
-            .as_f64()
-            .unwrap();
-
-        let render_canvas = utils::get_window()
-            .unwrap()
-            .document()
-            .unwrap()
-            .get_element_by_id(&render_id)
-            .unwrap()
-            .unchecked_into::<HtmlCanvasElement>();
-
-        render_canvas.set_width(width as u32);
-        render_canvas.set_height(height as u32);
-
-        let ctx = render_canvas
-            .get_context("2d")
-            .unwrap()
-            .unwrap()
-            .unchecked_into::<CanvasRenderingContext2d>();
-
-        let _ = ctx.draw_image_with_html_image_element(
-            &video_chunk, 
-            0.0 as f64,
-            0.0 as f64
-        );
-
-        video_chunk.unchecked_into::<VideoFrame>().close();
-    }) as Box<dyn FnMut(JsValue)>);
-
-    let local_video_decoder = VideoDecoder::new(
-        &VideoDecoderInit::new(error_video.as_ref().unchecked_ref(), output.as_ref().unchecked_ref())
-    ).unwrap();
-    error_video.forget();
-    output.forget();
-    local_video_decoder.configure(&VideoDecoderConfig::new(&VIDEO_CODEC));
-    local_video_decoder
-}
-
-fn create_audio_decoder() -> AudioDecoder {
-    let error = Closure::wrap(Box::new(move |e: JsValue| {
-        error!("{:?}", e);
-    }) as Box<dyn FnMut(JsValue)>);
-    let audio_stream_generator =
-        MediaStreamTrackGenerator::new(&MediaStreamTrackGeneratorInit::new("audio")).unwrap();
-    // The audio context is used to reproduce audio.
-    let audio_context = configure_audio_context(&audio_stream_generator).unwrap();
-
-    let output = Closure::wrap(Box::new(move |audio_data: AudioData| {
-        let writable = audio_stream_generator.writable();
-        if writable.locked() {
-            return;
-        }
-        if let Err(e) = writable.get_writer().map(|writer| {
-            wasm_bindgen_futures::spawn_local(async move {
-                if let Err(e) = JsFuture::from(writer.ready()).await {
-                    error!("write chunk error {:?}", e);
-                }
-                if let Err(e) = JsFuture::from(writer.write_with_chunk(&audio_data)).await {
-                    error!("write chunk error {:?}", e);
-                };
-                writer.release_lock();
-            });
-        }) {
-            error!("error {:?}", e);
-        }
-    }) as Box<dyn FnMut(AudioData)>);
-    let decoder = AudioDecoder::new(&AudioDecoderInit::new(
-        error.as_ref().unchecked_ref(),
-        output.as_ref().unchecked_ref(),
-    ))
-    .unwrap();
-    decoder.configure(&AudioDecoderConfig::new(
-        AUDIO_CODEC,
-        AUDIO_CHANNELS,
-        AUDIO_SAMPLE_RATE,
-    ));
-    // let decoder = AudioDecoder::new(&audio_context).unwrap();
-    decoder
 }

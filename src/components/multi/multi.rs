@@ -3,9 +3,9 @@ use wasm_peers::{get_random_session_id, SessionId};
 use yew::{Component, Context, html, Html};
 use log::error;
 
-use crate::client::Client;
-use crate::host::Host;
-use crate::utils::global_window;
+use crate::components::multi::client::Client;
+use crate::components::multi::host::Host;
+use crate::utils::dom::global_window;
 use crate::utils;
 
 pub struct Multi {
@@ -18,7 +18,7 @@ impl Component for Multi {
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        let query_params = utils::get_query_params_multi();
+        let query_params = utils::dom::get_query_params_multi();
         let (session_id, is_host) =
             match (query_params.get("session_id"), query_params.get("is_host").or(Some("session_id".to_owned()))) {
                 (Some(session_string), Some(is_host)) => {
@@ -51,7 +51,6 @@ impl Component for Multi {
         html! {
             <main class="px-3">
                 <p class="lead"> { "Share session id: " } <span class="line">{ &self.session_id }</span> </p>
-                <p class="lead"> { "or just copy the page url." } </p>
                 if self.is_host {
                     <Host />
                 } else {

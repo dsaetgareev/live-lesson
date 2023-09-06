@@ -10,14 +10,14 @@ use web_sys::{HtmlElement, MouseEvent};
 use yew::{html, Component, Context, Html, NodeRef};
 use log::error;
 
-use crate::camera_encoder::CameraEncoder;
+use crate::encoders::camera_encoder::CameraEncoder;
 use crate::crypto::aes::Aes128State;
-use crate::device_selector::DeviceSelector;
-use crate::host_manager::HostManager;
-use crate::inputs::Message;
-use crate::microphone_encoder::MicrophoneEncoder;
-use crate::screen_encoder::ScreenEncoder;
-use crate::utils::{self, get_window};
+use crate::media_devices::device_selector::DeviceSelector;
+use crate::components::multi::host_manager::HostManager;
+use crate::utils::inputs::Message;
+use crate::encoders::microphone_encoder::MicrophoneEncoder;
+use crate::encoders::screen_encoder::ScreenEncoder;
+use crate::utils::{self, dom::get_window};
 use crate::wrappers::{EncodedVideoChunkTypeWrapper, EncodedAudioChunkTypeWrapper};
 
 const TEXTAREA_ID: &str = "document-textarea";
@@ -55,14 +55,14 @@ impl Component for Host {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let query_params = utils::get_query_params_multi();
+        let query_params = utils::dom::get_query_params_multi();
         let (session_id, _is_host) =
             match (query_params.get("session_id"), query_params.get("is_host")) {
                 (Some(session_string), Some(is_host)) => {
                     (SessionId::new(session_string), is_host == "true")
                 }
                 _ => {
-                    let location = utils::global_window().location();
+                    let location = utils::dom::global_window().location();
                     let generated_session_id = get_random_session_id();
                     query_params.append("session_id", generated_session_id.as_str());
                     // query_params.append("host", "true");
@@ -106,7 +106,7 @@ impl Component for Host {
                 // ctx.link().send_message(Msg::EnableMicrophone(true));
                 false
             },
-            Self::Message::UpdateValue => match utils::get_text_area_from_noderef(&self.host_area) {
+            Self::Message::UpdateValue => match utils::dom::get_text_area_from_noderef(&self.host_area) {
                 Ok(text_area) => {
                     let message = Message::HostToHost {
                          message: text_area.value()
@@ -134,7 +134,7 @@ impl Component for Host {
             },
             Self::Message::ChooseItem(client_id) => {
 
-                match utils::get_text_area_from_noderef(&self.client_area) {
+                match utils::dom::get_text_area_from_noderef(&self.client_area) {
                     Ok(text_area) => {
                         let _ = text_area.set_attribute("client_id", &client_id).unwrap();
                         let value = self.host_manager
@@ -156,7 +156,7 @@ impl Component for Host {
             },
             Self::Message::SendClient => {
 
-                match utils::get_text_area_from_noderef(&self.client_area) {
+                match utils::dom::get_text_area_from_noderef(&self.client_area) {
                     Ok(text_area) => {
                         let is_client_id = match text_area.get_attribute("client_id") {
                             Some(client_id) => {
@@ -400,7 +400,12 @@ impl Component for Host {
                         <textarea id={ TEXTAREA_ID } ref={ self.host_area.clone() } class="document" cols="100" rows="30" { placeholder } { oninput }/>
                     </div>
                 </div>
-                <video class="self-camera" autoplay=true id={VIDEO_ELEMENT_ID}></video>
+                <div class="consumer">
+                    <h3>{"Consumer!"}</h3>
+                    <canvas id="render" class="client_canvas" ></canvas>
+                    <video class="self-camera" autoplay=true id={VIDEO_ELEMENT_ID}></video>
+                </div>
+                
                 <DeviceSelector on_microphone_select={mic_callback} on_camera_select={cam_callback}/>
                 <div>
                     <button onclick={ screen_share_cb }>{"Демонстрация экрана"}</button>

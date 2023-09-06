@@ -28,3 +28,16 @@ pub enum Message {
         duration: f64,
     }
 }
+
+#[derive(Serialize, Deserialize)]
+pub enum ClientMessage {
+    ClientText {
+        message: String,
+    },
+
+    ClientVideo {
+        message: Vec<u8>,
+        chunk_type: String,
+        timestamp: f64,
+    },
+}

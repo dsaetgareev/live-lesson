@@ -65,30 +65,16 @@
 )]
 
 mod app;
-mod config;
-mod document;
-mod table;
-mod error;
-mod home;
-mod utils;
-mod multi;
-mod host;
-mod client;
-mod host_manager;
-mod inputs;
-mod video;
-mod camera_encoder;
-mod screen_encoder;
-mod encoder_state;
+mod errors;
 mod constants;
 mod sleep;
 mod wrappers;
-mod microphone_encoder;
-mod device_selector;
-pub mod video_tick;
 pub mod crypto;
 pub mod media_devices;
+pub mod encoders;
+pub mod utils;
+pub mod components;
 
 pub use app::{App, Route};
 // pub use config::CONFIG;
-pub use error::{LiveDocumentError as Error, LiveDocumentResult as Result};
+pub use crate::errors::error::{LiveDocumentError as Error, LiveDocumentResult as Result};

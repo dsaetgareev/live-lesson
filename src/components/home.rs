@@ -1,11 +1,26 @@
+use serde::{Deserialize, Serialize};
 use wasm_peers::get_random_session_id;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-use crate::document::Query;
-use crate::utils::get_input;
+use crate::components::document::document::Query;
+use crate::utils::dom::get_input;
 use crate::Route;
-use crate::video_tick::multi_tick::GameQuery;
+
+#[derive(Serialize, Deserialize)]
+pub struct GameQuery {
+    pub session_id: String,
+    pub is_host: bool,
+}
+
+impl GameQuery {
+    pub(crate) fn new(session_id: String, is_host: bool) -> Self {
+        GameQuery {
+            session_id,
+            is_host,
+        }
+    }
+}
 
 pub enum Msg {
     UpdateInput,

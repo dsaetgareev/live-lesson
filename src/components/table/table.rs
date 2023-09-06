@@ -6,7 +6,7 @@ use wasm_peers::{get_random_session_id, SessionId, ConnectionType, many_to_many:
 use web_sys::HtmlElement;
 use yew::prelude::*;
 
-use crate::utils::{self, get_window, get_table_td};
+use crate::utils::{self, dom::get_window, dom::get_table_td};
 
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -41,7 +41,7 @@ impl Component for Table {
 
 
     fn create(_ctx: &yew::Context<Self>) -> Self {
-        let query_params = utils::get_query_params().expect("failed to get query params, aborting");
+        let query_params = utils::dom::get_query_params().expect("failed to get query params, aborting");
         let session_id = query_params.get("session_id").map_or_else(
             || {
                 let location = get_window().expect("failed to get a window").location();
@@ -72,7 +72,7 @@ impl Component for Table {
             let mini_server = network_manager.clone();
             let is_ready = Rc::clone(&is_ready);
             move |user_id| {
-                let text_area = match utils::get_table_td("A1") {
+                let text_area = match utils::dom::get_table_td("A1") {
                     Ok(text_area) => text_area,
                     Err(err) => {
                         log::error!("failed to get textarea: {:#?}", err);
@@ -80,11 +80,6 @@ impl Component for Table {
                     }
                 };
                 if !*is_ready.borrow() {
-                    // text_area.set_disabled(false);
-                    // text_area.set_placeholder(
-                    //     "This is a live document shared with other users.\nWhat you write will be \
-                    //      visible to everyone.",
-                    // );
                     *is_ready.borrow_mut() = true;
                 }
                 let value = text_area.inner_text();

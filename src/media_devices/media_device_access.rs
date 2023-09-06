@@ -43,7 +43,7 @@ impl MediaDeviceAccess {
     }
 
     async fn request_permissions() -> anyhow::Result<(), JsValue> {
-        let navigator = utils::get_window().unwrap().navigator();
+        let navigator = utils::dom::get_window().unwrap().navigator();
         let media_devices = navigator.media_devices()?;
 
         let mut constraints = MediaStreamConstraints::new();

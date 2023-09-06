@@ -2,10 +2,10 @@ use yew::{html, Component, Context, Html};
 use yew_router::router::BrowserRouter;
 use yew_router::{Routable, Switch};
 
-use crate::document::Document;
-use crate::home::Home;
-use crate::multi::Multi;
-use crate::table::Table;
+use crate::components::document::document::Document;
+use crate::components::home::Home;
+use crate::components::multi::multi::Multi;
+use crate::components::table::table::Table;
 
 #[derive(Clone, Routable, PartialEq, Eq)]
 pub enum Route {

@@ -31,7 +31,7 @@ use crate::constants::VIDEO_HEIGHT;
 use crate::constants::VIDEO_WIDTH;
 use crate::crypto::aes::Aes128State;
 use crate::sleep::sleep;
-use crate::utils::get_window;
+use crate::utils::dom::get_window;
 
 pub struct CameraEncoder {
     aes: Arc<Aes128State>,

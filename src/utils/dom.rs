@@ -64,4 +64,3 @@ pub fn get_text_area_from_noderef(node_ref: &NodeRef) -> Result<HtmlTextAreaElem
         });
     text_area
 }
-

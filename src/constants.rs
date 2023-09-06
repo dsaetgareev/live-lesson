@@ -19,8 +19,8 @@ pub const AUDIO_BITRATE: f64 = 50000f64;
 // pub const VIDEO_HEIGHT: i32 = 480i32;
 // pub const VIDEO_WIDTH: i32 = 640i32;
 
-pub const VIDEO_HEIGHT: i32 = 1440i32;
-pub const VIDEO_WIDTH: i32 = 2560i32;
+pub const VIDEO_HEIGHT: i32 = 1080i32;
+pub const VIDEO_WIDTH: i32 = 1920i32;
 
 pub const RSA_BITS: usize = 1024;
 

@@ -77,7 +77,7 @@ impl MediaDeviceList {
         let audio_input_devices = Arc::clone(&self.audio_inputs.devices);
         let video_input_devices = Arc::clone(&self.video_inputs.devices);
         wasm_bindgen_futures::spawn_local(async move {
-            let navigator = utils::get_window().unwrap().navigator();
+            let navigator = utils::dom::get_window().unwrap().navigator();
             let media_devices = navigator.media_devices().unwrap();
 
             let promise: Promise = media_devices

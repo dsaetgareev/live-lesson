@@ -28,8 +28,7 @@ use crate::constants::AUDIO_CHANNELS;
 use crate::constants::AUDIO_CODEC;
 use crate::constants::AUDIO_SAMPLE_RATE;
 use crate::crypto::aes::Aes128State;
-use crate::utils;
-use crate::utils::get_window;
+use crate::utils::dom::get_window;
 
 pub struct MicrophoneEncoder {
     aes: Arc<Aes128State>,

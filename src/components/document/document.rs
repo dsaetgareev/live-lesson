@@ -6,7 +6,7 @@ use wasm_peers::many_to_many::NetworkManager;
 use wasm_peers::{get_random_session_id, ConnectionType, SessionId};
 use yew::{html, Component, Context, Html};
 
-use crate::utils::get_window;
+use crate::utils::dom::get_window;
 use crate::utils;
 
 pub enum Msg {
@@ -37,7 +37,7 @@ impl Component for Document {
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        let query_params = utils::get_query_params().expect("failed to get query params, aborting");
+        let query_params = utils::dom::get_query_params().expect("failed to get query params, aborting");
         let session_id = query_params.get("session_id").map_or_else(
             || {
                 let location = get_window().expect("failed to get a window").location();
@@ -67,7 +67,7 @@ impl Component for Document {
             let mini_server = network_manager.clone();
             let is_ready = Rc::clone(&is_ready);
             move |user_id| {
-                let text_area = match utils::get_text_area(TEXTAREA_ID) {
+                let text_area = match utils::dom::get_text_area(TEXTAREA_ID) {
                     Ok(text_area) => text_area,
                     Err(err) => {
                         log::error!("failed to get textarea: {:#?}", err);
@@ -92,7 +92,7 @@ impl Component for Document {
             }
         };
         let on_message_callback = {
-            move |_, message: String| match utils::get_text_area(TEXTAREA_ID) {
+            move |_, message: String| match utils::dom::get_text_area(TEXTAREA_ID) {
                 Ok(text_area) => {
                     text_area.set_value(&message);
                 }
@@ -111,7 +111,7 @@ impl Component for Document {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Self::Message::UpdateValue => match utils::get_text_area(TEXTAREA_ID) {
+            Self::Message::UpdateValue => match utils::dom::get_text_area(TEXTAREA_ID) {
                 Ok(text_area) => {
                     self.network_manager.send_message_to_all(&text_area.value());
                     true
