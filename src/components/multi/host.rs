@@ -124,11 +124,11 @@ impl Component for Host {
             },
             Self::Message::Tick => {
                 let time = Date::new_0().get_milliseconds() as f64;
-                // if let Err(error) = get_window().unwrap().request_animation_frame(
-                //     self.tick_callback.as_ref().unchecked_ref(),
-                // ) {
-                //     error!("Failed requesting next animation frame: {error:?}");
-                // }
+                if let Err(error) = get_window().unwrap().request_animation_frame(
+                    self.tick_callback.as_ref().unchecked_ref(),
+                ) {
+                    error!("Failed requesting next animation frame: {error:?}");
+                }
                 true
             },
             Self::Message::ChooseItem(client_id) => {
@@ -336,8 +336,9 @@ impl Component for Host {
             html! {
                     <>
                         <div client_id={ client_id.clone() } class="col" onclick={ item_click.clone() }>
-                            <textarea id={ key } client_id={ client_id } value={ value } class="doc-item" cols="100" rows="30" />
-                            <canvas id={ video_id } class="client_canvas" ></canvas>
+                            <textarea id={ key } client_id={ client_id.clone() } value={ value } class="doc-item" cols="100" rows="30" />
+                            // <video id={ video_id } client_id={ client_id } autoplay=true ></video>
+                            <canvas id={ video_id } client_id={ client_id } ></canvas>
                         </div>
                     </>
             }

@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-
 use gloo_timers::callback::Timeout;
 use js_sys::Uint8Array;
 use wasm_peers::one_to_many::MiniClient;

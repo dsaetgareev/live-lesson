@@ -30,7 +30,6 @@ use crate::constants::VIDEO_CODEC;
 use crate::constants::VIDEO_HEIGHT;
 use crate::constants::VIDEO_WIDTH;
 use crate::crypto::aes::Aes128State;
-use crate::sleep::sleep;
 use crate::utils::dom::get_window;
 
 pub struct CameraEncoder {
@@ -63,7 +62,6 @@ impl CameraEncoder {
         on_frame: impl Fn(web_sys::EncodedVideoChunk) + 'static,
         video_elem_id: &str,
     ) {
-        log::info!("camera im");
         // 1. Query the first device with a camera and a mic attached.
         // 2. setup WebCodecs, in particular
         // 3. send encoded video frames and raw audio to the server.
@@ -89,10 +87,8 @@ impl CameraEncoder {
             })
         };
         let device_id = if let Some(vid) = &self.state.selected {
-            log::info!("vid");
             vid.to_string()
         } else {
-            log::info!("return");
             return;
         };
         wasm_bindgen_futures::spawn_local(async move {
@@ -172,8 +168,6 @@ impl CameraEncoder {
             // Start encoding video and audio.
             let mut video_frame_counter = 0;
             let poll_video = async {
-                let s = sleep(100);
-                wasm_bindgen_futures::JsFuture::from(s).await.unwrap();
                 loop {
                     if !enabled.load(Ordering::Acquire)
                         || destroy.load(Ordering::Acquire)
