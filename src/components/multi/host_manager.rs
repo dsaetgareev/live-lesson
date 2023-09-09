@@ -1,6 +1,5 @@
 use std::{collections::HashMap, cell::RefCell, rc::Rc};
 
-use gloo_timers::callback::Timeout;
 use js_sys::Uint8Array;
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
 use web_sys::{EncodedVideoChunk, EncodedVideoChunkInit, VideoDecoder};
@@ -72,7 +71,7 @@ impl HostManager {
             let players = self.players.clone();
             let decoders = self.decoders.clone();
             move |user_id: UserId, message: String| {
-                // let input = serde_json::from_str::<PlayerInput>(&message).unwrap();      
+                // let input = serde_json::from_str::<PlayerInput>(&message).unwrap();    
                 let _ = match serde_json::from_str::<ClientMessage>(&message) {
                     Ok(input) => {
                         match input {

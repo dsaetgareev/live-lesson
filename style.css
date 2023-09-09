@@ -130,5 +130,10 @@ table.listview {
   display: block;
 }
 
+.item-canvas {
+  width: 10vw;
+  height: 10vh;
+}
+
 
 

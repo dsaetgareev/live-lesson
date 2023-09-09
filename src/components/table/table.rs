@@ -1,4 +1,4 @@
-use std::{rc::Rc, cell::RefCell};
+use std::{rc::Rc, cell::RefCell, str::FromStr};
 
 use serde::{Serialize, Deserialize};
 use wasm_bindgen::JsCast;
@@ -46,12 +46,12 @@ impl Component for Table {
             || {
                 let location = get_window().expect("failed to get a window").location();
                 let generated_session_id = get_random_session_id();
-                query_params.append("session_id", generated_session_id.as_str());
+                query_params.append("session_id", &generated_session_id.to_string());
                 let search: String = query_params.to_string().into();
                 location.set_search(&search).unwrap();
                 generated_session_id
             },
-            SessionId::new,
+            |s| {SessionId::from_str(&s).unwrap()},
         );
 
         let is_ready = Rc::new(RefCell::new(false));

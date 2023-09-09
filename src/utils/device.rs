@@ -4,7 +4,7 @@ use js_sys::{JsString, Reflect, Array};
 use log::error;
 use wasm_bindgen::{JsValue, prelude::Closure, JsCast};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{VideoDecoder, HtmlImageElement, HtmlCanvasElement, CanvasRenderingContext2d, VideoFrame, VideoDecoderInit, VideoDecoderConfig, AudioDecoder, MediaStreamTrackGenerator, MediaStreamTrackGeneratorInit, AudioData, AudioDecoderInit, AudioDecoderConfig, HtmlVideoElement, MediaStream, MediaStreamTrack};
+use web_sys::{VideoDecoder, HtmlImageElement, HtmlCanvasElement, CanvasRenderingContext2d, VideoFrame, VideoDecoderInit, VideoDecoderConfig, AudioDecoder, MediaStreamTrackGenerator, MediaStreamTrackGeneratorInit, AudioData, AudioDecoderInit, AudioDecoderConfig, HtmlVideoElement, MediaStream, MediaStreamTrack, AudioContext};
 
 use crate::constants::{VIDEO_CODEC, AUDIO_CHANNELS, AUDIO_CODEC, AUDIO_SAMPLE_RATE};
 
@@ -73,7 +73,7 @@ pub fn create_video_decoder_frame(render_id: String) -> VideoDecoder {
         *frame_count.borrow_mut() += 1;
         let chunk = Box::new(original_chunk);
         let video_chunk = chunk.clone().unchecked_into::<HtmlVideoElement>();
-        if *frame_count.borrow() % 2 == 0 {
+        if *frame_count.borrow() % 3 == 0 {
             
             let width = Reflect::get(&chunk.clone(), &JsString::from("codedWidth"))
                 .unwrap()
@@ -192,15 +192,15 @@ pub fn create_video_decoder_video(video_elem_id: String) -> VideoDecoder {
     local_video_decoder
 }
 
-pub fn create_audio_decoder() -> AudioDecoder {
+pub fn create_audio_decoder() -> (AudioDecoder, AudioContext) {
     let error = Closure::wrap(Box::new(move |e: JsValue| {
         error!("{:?}", e);
     }) as Box<dyn FnMut(JsValue)>);
     let audio_stream_generator =
         MediaStreamTrackGenerator::new(&MediaStreamTrackGeneratorInit::new("audio")).unwrap();
     // The audio context is used to reproduce audio.
-    let _audio_context = configure_audio_context(&audio_stream_generator).unwrap();
-
+    let audio_context = configure_audio_context(&audio_stream_generator).unwrap();
+   
     let output = Closure::wrap(Box::new(move |audio_data: AudioData| {
         let writable = audio_stream_generator.writable();
         if writable.locked() {
@@ -230,5 +230,7 @@ pub fn create_audio_decoder() -> AudioDecoder {
         AUDIO_CHANNELS,
         AUDIO_SAMPLE_RATE,
     ));
-    decoder
+    error.forget();
+    output.forget();
+    (decoder, audio_context)
 }

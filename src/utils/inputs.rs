@@ -28,7 +28,7 @@ pub enum Message {
         chunk_type: String,
         timestamp: f64,
         duration: f64,
-    }
+    },
 }
 
 #[derive(Serialize, Deserialize)]

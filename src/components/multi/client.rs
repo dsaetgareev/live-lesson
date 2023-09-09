@@ -1,11 +1,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::sync::Arc;
 use gloo_timers::callback::Timeout;
 use js_sys::Uint8Array;
 use wasm_peers::one_to_many::MiniClient;
 use wasm_peers::{get_random_session_id, ConnectionType, SessionId};
-use web_sys::{EncodedVideoChunkInit, EncodedVideoChunk, EncodedAudioChunkInit, EncodedAudioChunk};
+use web_sys::{EncodedVideoChunkInit, EncodedVideoChunk, EncodedAudioChunkInit, EncodedAudioChunk, AudioContext};
 use yew::{html, Component, Context, Html, NodeRef};
 use log::error;
 
@@ -36,6 +37,7 @@ pub struct Client {
     client_area: NodeRef,
     is_screen_share: Rc<RefCell<bool>>,
     camera: CameraEncoder,
+    // audio_context: AudioContext,
 }
 
 impl Component for Client {
@@ -47,12 +49,12 @@ impl Component for Client {
         let session_id =
             match query_params.get("session_id") {
                 Some(session_string) => {
-                    SessionId::new(session_string)
+                    SessionId::new(uuid::Uuid::from_str(&session_string).unwrap().as_u128())
                 }
                 _ => {
                     let location = utils::dom::global_window().location();
                     let generated_session_id = get_random_session_id();
-                    query_params.append("session_id", generated_session_id.as_str());
+                    query_params.append("session_id", &generated_session_id.to_string());
                     let search: String = query_params.to_string().into();
                     if let Err(error) = location.set_search(&search) {
                         error!("Error while setting URL: {error:?}")
@@ -109,7 +111,7 @@ impl Component for Client {
         let is_screen_share = Rc::new(RefCell::new(false));
         let decoder = create_video_decoder("render".to_owned());
         let screen_share_decoder = create_video_decoder("screen_share".to_owned());
-        let audio_decoder = Box::new(create_audio_decoder());
+        let (audio_decoder, audio_context) = create_audio_decoder();
         let on_message_callback = {
             let aes = Arc::new(Aes128State::new(true));
             let is_screen_share = is_screen_share.clone();
@@ -232,9 +234,8 @@ impl Component for Client {
                                 timestamp,
                                 duration
                             } => {     
-                   
+                                let _ = audio_context.resume();
                                 let chunk_type = EncodedAudioChunkTypeWrapper::from(chunk_type).0;
-                                // log::info!("audio {:?}", message);
                                 let audio_data = &message;
                                 let audio_data_js: js_sys::Uint8Array =
                                     js_sys::Uint8Array::new_with_length(audio_data.len() as u32);
@@ -250,8 +251,7 @@ impl Component for Client {
                                         log::info!("audio decoder unconfigured");
                                     },
                                     web_sys::CodecState::Configured => {
-                                        log::info!("configured");
-                                        // audio_decoder.decode(&encoded_audio_chunk);
+                                        audio_decoder.decode(&encoded_audio_chunk);
                                     },
                                     web_sys::CodecState::Closed => {
                                         log::info!("audio_decoder closed");
@@ -279,6 +279,7 @@ impl Component for Client {
             client_area,
             is_screen_share,
             camera: CameraEncoder::new(aes.clone()),
+            // audio_context
         }
     }
 

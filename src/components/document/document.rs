@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use wasm_peers::many_to_many::NetworkManager;
@@ -42,12 +43,12 @@ impl Component for Document {
             || {
                 let location = get_window().expect("failed to get a window").location();
                 let generated_session_id = get_random_session_id();
-                query_params.append("session_id", generated_session_id.as_str());
+                query_params.append("session_id", &generated_session_id.to_string());
                 let search: String = query_params.to_string().into();
                 location.set_search(&search).unwrap();
                 generated_session_id
             },
-            SessionId::new,
+            |s| {SessionId::new(uuid::Uuid::from_str(&s).unwrap().as_u128())},
         );
 
         let is_ready = Rc::new(RefCell::new(false));

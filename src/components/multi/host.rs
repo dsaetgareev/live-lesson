@@ -1,4 +1,5 @@
 
+use std::str::FromStr;
 use std::sync::Arc;
 
 use gloo_timers::callback::Timeout;
@@ -60,12 +61,12 @@ impl Component for Host {
         let (session_id, _is_host) =
             match (query_params.get("session_id"), query_params.get("is_host")) {
                 (Some(session_string), Some(is_host)) => {
-                    (SessionId::new(session_string), is_host == "true")
+                    (SessionId::new(uuid::Uuid::from_str(&session_string).unwrap().as_u128()), is_host == "true")
                 }
                 _ => {
                     let location = utils::dom::global_window().location();
                     let generated_session_id = get_random_session_id();
-                    query_params.append("session_id", generated_session_id.as_str());
+                    query_params.append("session_id", &generated_session_id.to_string());
                     // query_params.append("host", "true");
                     let search: String = query_params.to_string().into();
                     if let Err(error) = location.set_search(&search) {
@@ -113,8 +114,7 @@ impl Component for Host {
                          message: text_area.value()
                     };
                     let message = serde_json::to_string(&message).unwrap();
-                    self.host_manager.as_ref().unwrap().mini_server.send_message_to_all(&message);
-                    let lenghtn = self.host_manager.as_ref().unwrap().players.borrow().len();
+                    let _ = self.host_manager.as_ref().unwrap().mini_server.send_message_to_all(&message).expect("not send message");
                     true
                 }
                 Err(err) => {
@@ -123,7 +123,6 @@ impl Component for Host {
                 }
             },
             Self::Message::Tick => {
-                let time = Date::new_0().get_milliseconds() as f64;
                 if let Err(error) = get_window().unwrap().request_animation_frame(
                     self.tick_callback.as_ref().unchecked_ref(),
                 ) {
@@ -141,7 +140,7 @@ impl Component for Host {
                             .unwrap()
                             .players
                             .borrow()
-                            .get(&UserId::new(client_id.parse::<usize>().unwrap()))
+                            .get(&UserId::new(client_id.parse::<u64>().unwrap()))
                             .unwrap()
                             .clone();
                         text_area.set_value(&value);
@@ -160,8 +159,9 @@ impl Component for Host {
                         let is_client_id = match text_area.get_attribute("client_id") {
                             Some(client_id) => {
                                 if client_id != "none".to_owned() {
-                                    let user_id: UserId = UserId::new(client_id.parse::<usize>().unwrap());
+                                    let user_id: UserId = UserId::new(client_id.parse::<u64>().unwrap());
                                     let value = text_area.value();
+                                    self.host_manager.as_ref().unwrap().players.borrow_mut().insert(user_id, value.clone()); 
                                     let message = Message::HostToClient {
                                         message: value
                                     };
@@ -206,7 +206,7 @@ impl Component for Host {
                     };
                     match serde_json::to_string(&message) {
                         Ok(message) => {
-                            ms.send_message_to_all(&message);
+                            let _ = ms.send_message_to_all(&message);
                         },
                         Err(_) => todo!(),
                     };
@@ -244,7 +244,7 @@ impl Component for Host {
                     };
                     match serde_json::to_string(&message) {
                         Ok(message) => {
-                            ms.send_message_to_all(&message);
+                            let _ = ms.send_message_to_all(&message);
                         },
                         Err(_) => todo!(),
                     };                    
@@ -283,7 +283,7 @@ impl Component for Host {
                     };
                     match serde_json::to_string(&message) {
                         Ok(message) => {
-                            ms.send_message_to_all(&message);
+                            let _ = ms.send_message_to_all(&message);
                         },
                         Err(_) => todo!(),
                     };                    
@@ -298,7 +298,7 @@ impl Component for Host {
                 if self.microphone.select(audio) {
                     let link = ctx.link().clone();
                     let timeout = Timeout::new(1000, move || {
-                        link.send_message(Msg::EnableMicrophone(false));
+                        link.send_message(Msg::EnableMicrophone(true));
                     });
                     timeout.forget();
                 }
@@ -338,7 +338,7 @@ impl Component for Host {
                         <div client_id={ client_id.clone() } class="col" onclick={ item_click.clone() }>
                             <textarea id={ key } client_id={ client_id.clone() } value={ value } class="doc-item" cols="100" rows="30" />
                             // <video id={ video_id } client_id={ client_id } autoplay=true ></video>
-                            <canvas id={ video_id } client_id={ client_id } ></canvas>
+                            <canvas id={ video_id } client_id={ client_id } class="item-canvas" ></canvas>
                         </div>
                     </>
             }
@@ -351,7 +351,7 @@ impl Component for Host {
                         .into_keys()
                         .map(|key| {
                             let value = String::from(host_manager.players.borrow().get(&key).unwrap());
-                            log::info!("value {}", value.clone());
+                            // log::info!("value {}", value.clone());
                             render_item(key.to_string(), value.to_string())
                         }).collect::<Html>()      
                 },

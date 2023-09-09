@@ -1,4 +1,6 @@
 
+use std::str::FromStr;
+
 use wasm_peers::{get_random_session_id, SessionId};
 use yew::{Component, Context, html, Html};
 use log::error;
@@ -22,12 +24,12 @@ impl Component for Multi {
         let (session_id, is_host) =
             match (query_params.get("session_id"), query_params.get("is_host").or(Some("session_id".to_owned()))) {
                 (Some(session_string), Some(is_host)) => {
-                    (SessionId::new(session_string), is_host == "true")
+                    (SessionId::new(uuid::Uuid::from_str(&session_string).unwrap().as_u128()), is_host == "true")
                 }
                 _ => {
                     let location = global_window().location();
                     let generated_session_id = get_random_session_id();
-                    query_params.append("session_id", generated_session_id.as_str());
+                    query_params.append("session_id", &uuid::Uuid::from_u128(generated_session_id.inner()).to_string());
                     // query_params.append("host", "true");
                     let search: String = query_params.to_string().into();
                     if let Err(error) = location.set_search(&search) {

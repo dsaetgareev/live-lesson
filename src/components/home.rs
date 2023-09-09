@@ -58,7 +58,7 @@ impl Component for Home {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let mut session_id = self.input.clone();
         if self.input.is_empty() {
-            session_id = get_random_session_id().into_inner();
+            session_id = uuid::Uuid::from_u128(get_random_session_id().inner()).to_string();
         }
         let history = ctx.link().history().unwrap();
         let start_as_host_text_document = {
@@ -75,7 +75,7 @@ impl Component for Home {
         let start_as_host_table_document = {
             let mut session_id = self.input.clone();
             if self.input.is_empty() {
-                session_id = get_random_session_id().into_inner();
+                session_id = get_random_session_id().to_string();
             }
             let history = history.clone();
             Callback::once(move |_| {
@@ -90,7 +90,7 @@ impl Component for Home {
         let start_as_host_multi_document = {
             let mut session_id = self.input.clone();
             if self.input.is_empty() {
-                session_id = get_random_session_id().into_inner();
+                session_id = uuid::Uuid::from_u128(get_random_session_id().inner()).to_string();
             }
             let history = history.clone();
             Callback::once(move |_| {
