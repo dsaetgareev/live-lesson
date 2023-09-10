@@ -49,6 +49,9 @@ impl CameraEncoder {
     pub fn set_enabled(&mut self, value: bool) -> bool {
         self.state.set_enabled(value)
     }
+    pub fn get_enabled(&self) -> bool {
+        self.state.is_enabled()
+    }
     pub fn select(&mut self, device: String) -> bool {
         self.state.select(device)
     }
@@ -58,7 +61,6 @@ impl CameraEncoder {
 
     pub fn start(
         &mut self,
-        userid: String,
         on_frame: impl Fn(web_sys::EncodedVideoChunk) + 'static,
         video_elem_id: &str,
     ) {
@@ -66,7 +68,6 @@ impl CameraEncoder {
         // 2. setup WebCodecs, in particular
         // 3. send encoded video frames and raw audio to the server.
         let on_frame = Box::new(on_frame);
-        let userid = Box::new(userid);
         let video_elem_id = video_elem_id.to_string();
         let EncoderState {
             destroy,
@@ -74,16 +75,11 @@ impl CameraEncoder {
             switching,
             ..
         } = self.state.clone();
-        let aes = self.aes.clone();
         let video_output_handler = {
-            let userid = userid;
             let on_frame = on_frame;
-            let mut buffer: [u8; 100000] = [0; 100000];
-            let mut sequence_number = 0;
             Box::new(move |chunk: JsValue| {
                 let chunk = web_sys::EncodedVideoChunk::from(chunk);
                 on_frame(chunk);
-                sequence_number += 1;
             })
         };
         let device_id = if let Some(vid) = &self.state.selected {

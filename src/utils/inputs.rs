@@ -29,6 +29,8 @@ pub enum Message {
         timestamp: f64,
         duration: f64,
     },
+    HostSwicthAudio,
+    HostSwicthVideo,
 }
 
 #[derive(Serialize, Deserialize)]

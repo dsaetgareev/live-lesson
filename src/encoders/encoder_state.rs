@@ -27,7 +27,7 @@ impl EncoderState {
 
     // Sets the enabled bit to a given value, returning true if it was a change.
     pub fn set_enabled(&mut self, value: bool) -> bool {
-        if value != self.enabled.load(Ordering::Acquire) {
+        if value != self.is_enabled(){
             self.enabled.store(value, Ordering::Release);
             true
         } else {

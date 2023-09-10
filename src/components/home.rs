@@ -113,7 +113,7 @@ impl Component for Home {
                     </header>
 
                     <main class="px-3">
-                        <h1>{ "Live Document" }</h1>
+                        <h1>{ "Live Lesson" }</h1>
                         <hr />
                         <p class="lead">{ "Создайте документ" }</p>
                         <p class="lead">

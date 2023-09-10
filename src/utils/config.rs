@@ -1,6 +1,6 @@
 use js_sys::Array;
 use serde::Deserialize;
-use web_sys::{AudioContext, AudioContextOptions, OscillatorType};
+use web_sys::{AudioContext, AudioContextOptions, OscillatorType, GainNode};
 use web_sys::{MediaStream, MediaStreamTrackGenerator};
 
 use crate::constants::AUDIO_SAMPLE_RATE;
@@ -16,7 +16,7 @@ pub struct Config {
 
 pub fn configure_audio_context(
     audio_stream_generator: &MediaStreamTrackGenerator,
-) -> anyhow::Result<AudioContext> {
+) -> anyhow::Result<(AudioContext, GainNode)> {
     // let _ = get_local_audio_context();
     let js_tracks = Array::new();
     js_tracks.push(audio_stream_generator);
@@ -33,7 +33,7 @@ pub fn configure_audio_context(
     let _ = gain_node
         .connect_with_audio_node(&audio_context.destination())
         .unwrap();
-    Ok(audio_context)
+    Ok((audio_context, gain_node))
 }
 
 fn get_local_audio_context() {

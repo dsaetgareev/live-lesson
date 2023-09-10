@@ -1,10 +1,12 @@
 use std::{collections::HashMap, cell::RefCell, rc::Rc};
 
 use js_sys::Uint8Array;
+use wasm_bindgen::prelude::Closure;
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
 use web_sys::{EncodedVideoChunk, EncodedVideoChunkInit, VideoDecoder};
 
-use crate::{utils, utils::{inputs::{Message, ClientMessage}, device::{create_video_decoder, create_video_decoder_video, create_video_decoder_frame}, dom::create_video_id}, wrappers::EncodedVideoChunkTypeWrapper};
+use crate::{utils, utils::{inputs::{Message, ClientMessage}, dom::create_video_id, device::create_video_decoder_frame}, wrappers::EncodedVideoChunkTypeWrapper};
+
 
 const TEXTAREA_ID: &str = "document-textarea";
 const TEXTAREA_ID_CLIENT: &str = "client-textarea";
@@ -29,7 +31,7 @@ impl HostManager {
         Self { 
             mini_server,
             players,
-            decoders
+            decoders,
          }
     }
 
@@ -88,7 +90,7 @@ impl HostManager {
                                     text_area.set_value(&message);
                                 }
                                 
-                                players.borrow_mut().insert(user_id, message); 
+                                players.borrow_mut().insert(user_id, message);
                             },
                             ClientMessage::ClientVideo { 
                                 message,

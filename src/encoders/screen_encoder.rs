@@ -2,7 +2,7 @@ use js_sys::Array;
 use js_sys::JsString;
 use js_sys::Reflect;
 use log::error;
-use std::sync::{atomic::Ordering, Arc};
+use std::sync::atomic::Ordering;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
@@ -25,20 +25,15 @@ use super::encoder_state::EncoderState;
 use crate::constants::SCREEN_VIDEO_HEIGHT;
 use crate::constants::SCREEN_VIDEO_WIDTH;
 use crate::constants::VIDEO_CODEC;
-use crate::constants::VIDEO_HEIGHT;
-use crate::constants::VIDEO_WIDTH;
-use crate::crypto::aes::Aes128State;
 use crate::utils;
 
 pub struct ScreenEncoder {
-    aes: Arc<Aes128State>,
     state: EncoderState,
 }
 
 impl ScreenEncoder {
-    pub fn new(aes: Arc<Aes128State>) -> Self {
+    pub fn new() -> Self {
         Self {
-            aes,
             state: EncoderState::new(),
         }
     }
@@ -53,24 +48,17 @@ impl ScreenEncoder {
 
     pub fn start(
         &mut self, 
-        userid: String, 
         on_frame: impl Fn(web_sys::EncodedVideoChunk) + 'static,
     ) {
         let EncoderState {
             enabled, destroy, ..
         } = self.state.clone();
         let on_frame = Box::new(on_frame);
-        let userid = Box::new(userid);
-        let aes = self.aes.clone();
         let screen_output_handler = {
-            let userid = userid;
             let on_frame = on_frame;
-            let mut buffer: [u8; 100000] = [0; 100000];
-            let mut sequence_number = 0;
             Box::new(move |chunk: JsValue| {
                 let chunk = web_sys::EncodedVideoChunk::from(chunk);
                 on_frame(chunk);
-                sequence_number += 1;
             })
         };
         wasm_bindgen_futures::spawn_local(async move {

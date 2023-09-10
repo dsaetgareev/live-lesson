@@ -1,9 +1,10 @@
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
 
 use gloo_timers::callback::Timeout;
-use js_sys::Date;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 use wasm_peers::{get_random_session_id, ConnectionType, SessionId, UserId};
@@ -37,6 +38,8 @@ pub enum Msg {
     EnableScreenShare(bool),
     AudioDeviceChanged(String),
     VideoDeviceChanged(String),
+    SwitchSpeakers(String),
+    SwitchVideo(String),
 }
 
 pub struct Host {
@@ -48,7 +51,6 @@ pub struct Host {
     camera: CameraEncoder,
     microphone: MicrophoneEncoder,
     pub screen: ScreenEncoder,
-    aes: Arc<Aes128State>,
     
 }
 
@@ -92,20 +94,17 @@ impl Component for Host {
             client_area,
             camera: CameraEncoder::new(aes.clone()),
             microphone: MicrophoneEncoder::new(aes.clone()),
-            screen: ScreenEncoder::new(aes.clone()),
-            aes
+            screen: ScreenEncoder::new(),
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Init => {
-                
                 self.host_manager = Some(init(
                     self.session_id.clone()
                 ));
                 ctx.link().send_message(Msg::Tick);
-                // ctx.link().send_message(Msg::EnableMicrophone(true));
                 false
             },
             Self::Message::UpdateValue => match utils::dom::get_text_area_from_noderef(&self.host_area) {
@@ -187,7 +186,6 @@ impl Component for Host {
                     return true;
                 }
 
-                let aes = self.aes.clone();
                 let ms = self.host_manager.as_ref().unwrap().mini_server.clone();
                 let on_frame = move |chunk: web_sys::EncodedVideoChunk| {
                     let duration = chunk.duration().expect("no duration video chunk");
@@ -213,7 +211,6 @@ impl Component for Host {
                     
                 };
                 self.camera.start(
-                    "email".to_owned(),
                     on_frame,
                     VIDEO_ELEMENT_ID,
                 );
@@ -225,7 +222,6 @@ impl Component for Host {
                     return true;
                 }
 
-                let aes = self.aes.clone();
                 let ms = self.host_manager.as_ref().unwrap().mini_server.clone();
                 let on_frame = move |chunk: web_sys::EncodedVideoChunk| {
                     let duration = chunk.duration().expect("no duration video chunk");
@@ -250,7 +246,6 @@ impl Component for Host {
                     };                    
                 };
                 self.screen.start(
-                    "email".to_owned(),
                     on_frame,
                 );
                 false
@@ -260,7 +255,6 @@ impl Component for Host {
                     return true;
                 }
 
-                let aes = self.aes.clone();
                 let ms = self.host_manager.as_ref().unwrap().mini_server.clone();
                 let on_audio = move |chunk: web_sys::EncodedAudioChunk| {
                     let duration = chunk.duration().unwrap();
@@ -314,6 +308,16 @@ impl Component for Host {
                 }
                 false
             }
+            Msg::SwitchSpeakers(client_id) => {
+                let message = serde_json::to_string(&Message::HostSwicthAudio).unwrap();
+                let _ = self.host_manager.as_ref().unwrap().mini_server.send_message(UserId::new(client_id.parse::<u64>().unwrap()), &message);
+                false
+            }
+            Msg::SwitchVideo(client_id) => {
+                let message = serde_json::to_string(&Message::HostSwicthVideo).unwrap();
+                let _ = self.host_manager.as_ref().unwrap().mini_server.send_message(UserId::new(client_id.parse::<u64>().unwrap()), &message);
+                false
+            }
         }
     }
 
@@ -333,13 +337,25 @@ impl Component for Host {
         let render_item = |key: String, value: String| {
             let client_id = key.clone();
             let video_id = create_video_id(key.clone());
+            let speakers_id = client_id.clone();
+            let video_switch_id = client_id.clone();
+            let on_switch_speakers = ctx.link().callback(move |_| Self::Message::SwitchSpeakers(speakers_id.clone()));
+            let on_switch_video = ctx.link().callback(move |_|  Msg::SwitchVideo(video_switch_id.clone()));
             html! {
                     <>
-                        <div client_id={ client_id.clone() } class="col" onclick={ item_click.clone() }>
-                            <textarea id={ key } client_id={ client_id.clone() } value={ value } class="doc-item" cols="100" rows="30" />
-                            // <video id={ video_id } client_id={ client_id } autoplay=true ></video>
-                            <canvas id={ video_id } client_id={ client_id } class="item-canvas" ></canvas>
+                        <div>
+                            <div client_id={ client_id.clone() } class="col" onclick={ item_click.clone() }>
+                                <textarea id={ key } client_id={ client_id.clone() } value={ value } class="doc-item" cols="100" rows="30" />
+                                // <video id={ video_id } client_id={ client_id } autoplay=true ></video>
+                                
+                                <canvas id={ video_id } client_id={ client_id } class="item-canvas" ></canvas>
+                            </div>
+                            <div class="col">
+                                <button onclick={ on_switch_video }>{"video"}</button>
+                                <button onclick={ on_switch_speakers }>{"audio"}</button>
+                            </div>
                         </div>
+                        
                     </>
             }
         };
@@ -409,6 +425,13 @@ impl Component for Host {
         }
     }
 
+    fn destroy(&mut self, _ctx: &Context<Self>) {
+        log::debug!("destroying");
+        self.camera.stop();
+        self.microphone.stop();
+        self.screen.stop();
+    }
+
 }
 
 fn init(session_id: SessionId) -> HostManager {
@@ -419,8 +442,6 @@ fn init(session_id: SessionId) -> HostManager {
         credential: env!("TURN_SERVER_CREDENTIAL").to_string(),
     };
     let signaling_server_url = concat!(env!("SIGNALING_SERVER_URL"), "/one-to-many");
-
-    
 
     let mut host_manager = HostManager::new(session_id, connection_type, signaling_server_url);
     host_manager.init();

@@ -4,13 +4,13 @@ use js_sys::{JsString, Reflect, Array};
 use log::error;
 use wasm_bindgen::{JsValue, prelude::Closure, JsCast};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{VideoDecoder, HtmlImageElement, HtmlCanvasElement, CanvasRenderingContext2d, VideoFrame, VideoDecoderInit, VideoDecoderConfig, AudioDecoder, MediaStreamTrackGenerator, MediaStreamTrackGeneratorInit, AudioData, AudioDecoderInit, AudioDecoderConfig, HtmlVideoElement, MediaStream, MediaStreamTrack, AudioContext};
+use web_sys::{VideoDecoder, HtmlImageElement, HtmlCanvasElement, CanvasRenderingContext2d, VideoFrame, VideoDecoderInit, VideoDecoderConfig, AudioDecoder, MediaStreamTrackGenerator, MediaStreamTrackGeneratorInit, AudioData, AudioDecoderInit, AudioDecoderConfig, HtmlVideoElement, MediaStream, AudioContext};
 
 use crate::constants::{VIDEO_CODEC, AUDIO_CHANNELS, AUDIO_CODEC, AUDIO_SAMPLE_RATE};
 
-use super::{dom::get_window, config::configure_audio_context};
+use super::{dom::get_window, config::configure_audio_context, models::{Audio, Video}};
 
-pub fn create_video_decoder(render_id: String) -> VideoDecoder {
+pub fn create_video_decoder(render_id: String) -> Video {
     let error_video = Closure::wrap(Box::new(move |e: JsValue| {
         error!("{:?}", e);
     }) as Box<dyn FnMut(JsValue)>);
@@ -58,8 +58,9 @@ pub fn create_video_decoder(render_id: String) -> VideoDecoder {
     ).unwrap();
     error_video.forget();
     output.forget();
-    local_video_decoder.configure(&VideoDecoderConfig::new(&VIDEO_CODEC));
-    local_video_decoder
+    let video_config = VideoDecoderConfig::new(&VIDEO_CODEC);
+    local_video_decoder.configure(&video_config);
+    Video::new(local_video_decoder, video_config)
 }
 
 
@@ -192,14 +193,14 @@ pub fn create_video_decoder_video(video_elem_id: String) -> VideoDecoder {
     local_video_decoder
 }
 
-pub fn create_audio_decoder() -> (AudioDecoder, AudioContext) {
+pub fn create_audio_decoder() -> Audio {
     let error = Closure::wrap(Box::new(move |e: JsValue| {
         error!("{:?}", e);
     }) as Box<dyn FnMut(JsValue)>);
     let audio_stream_generator =
         MediaStreamTrackGenerator::new(&MediaStreamTrackGeneratorInit::new("audio")).unwrap();
     // The audio context is used to reproduce audio.
-    let audio_context = configure_audio_context(&audio_stream_generator).unwrap();
+    let (audio_context, gain_node) = configure_audio_context(&audio_stream_generator).unwrap();
    
     let output = Closure::wrap(Box::new(move |audio_data: AudioData| {
         let writable = audio_stream_generator.writable();
@@ -232,5 +233,5 @@ pub fn create_audio_decoder() -> (AudioDecoder, AudioContext) {
     ));
     error.forget();
     output.forget();
-    (decoder, audio_context)
+    Audio::new(audio_context, gain_node, decoder)
 }

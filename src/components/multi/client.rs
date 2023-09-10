@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use gloo_timers::callback::Timeout;
 use js_sys::Uint8Array;
+use wasm_bindgen::prelude::Closure;
 use wasm_peers::one_to_many::MiniClient;
 use wasm_peers::{get_random_session_id, ConnectionType, SessionId};
 use web_sys::{EncodedVideoChunkInit, EncodedVideoChunk, EncodedAudioChunkInit, EncodedAudioChunk, AudioContext};
@@ -16,6 +17,7 @@ use crate::utils::device::{create_video_decoder, create_audio_decoder};
 use crate::utils::inputs::Message;
 use crate::utils::inputs::ClientMessage;
 use crate::utils;
+use crate::utils::models::Audio;
 use crate::wrappers::{EncodedVideoChunkTypeWrapper, EncodedAudioChunkTypeWrapper};
 use crate::media_devices::device_selector::DeviceSelector;
 
@@ -29,6 +31,7 @@ pub enum Msg {
     VideoDeviceChanged(String),
     EnableVideo(bool),
     AudioDeviceChanged(String),
+    SwitchVedeo,
 }
 
 pub struct Client {
@@ -37,7 +40,6 @@ pub struct Client {
     client_area: NodeRef,
     is_screen_share: Rc<RefCell<bool>>,
     camera: CameraEncoder,
-    // audio_context: AudioContext,
 }
 
 impl Component for Client {
@@ -109,15 +111,15 @@ impl Component for Client {
         };
 
         let is_screen_share = Rc::new(RefCell::new(false));
-        let decoder = create_video_decoder("render".to_owned());
+        let video = create_video_decoder("render".to_owned());
         let screen_share_decoder = create_video_decoder("screen_share".to_owned());
-        let (audio_decoder, audio_context) = create_audio_decoder();
+        let audio = create_audio_decoder();
         let on_message_callback = {
             let aes = Arc::new(Aes128State::new(true));
             let is_screen_share = is_screen_share.clone();
-            let decoder = decoder.clone();
+            let mut video = video.clone();
             let screen_share_decoder = screen_share_decoder.clone();
-            let audio_decoder = audio_decoder.clone();
+            let mut audio = audio.clone();
             move |message: String| {
                 let _ = match serde_json::from_str::<Message>(&message) {
                     Ok(input) => {
@@ -161,34 +163,43 @@ impl Component for Client {
                                 timestamp,
                                 duration
                             } => {
-                                let chunk_type = EncodedVideoChunkTypeWrapper::from(chunk_type.as_str()).0;
-                                let video_data = Uint8Array::new_with_length(message.len().try_into().unwrap());
-                                video_data.copy_from(&message);
-                                let video_chunk = EncodedVideoChunkInit::new(&video_data, timestamp, chunk_type);
-                                // video_chunk.duration(image.duration);
-                                let chunk = EncodedVideoChunk::new(&video_chunk).unwrap();
-                                
-
-                                let mut video_vector = vec![0u8; chunk.byte_length() as usize];
-                                let video_message = video_vector.as_mut();
-                                chunk.copy_to_with_u8_array(video_message);
-                                let data = Uint8Array::from(video_message.as_ref());
-                                let mut encoded_chunk_init = EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_());
-                                encoded_chunk_init.duration(duration);
-                                let encoded_video_chunk = EncodedVideoChunk::new(
-                                    &encoded_chunk_init
-                                ).unwrap();
-                                match decoder.state() {
-                                    web_sys::CodecState::Unconfigured => {
-                                        log::info!("video decoder unconfigured");
-                                    },
-                                    web_sys::CodecState::Configured => {
-                                        decoder.decode(&encoded_video_chunk);
-                                    },
-                                    web_sys::CodecState::Closed => {
-                                        log::info!("video decoder closed");
-                                    },
-                                    _ => {},
+                                if video.on_video {
+                                    if video.check_key {
+                                        if chunk_type != "key" {
+                                            return;
+                                        }
+                                        video.check_key = false;
+                                    }
+                                    let chunk_type = EncodedVideoChunkTypeWrapper::from(chunk_type.as_str()).0;
+                                    let video_data = Uint8Array::new_with_length(message.len().try_into().unwrap());
+                                    video_data.copy_from(&message);
+                                    let video_chunk = EncodedVideoChunkInit::new(&video_data, timestamp, chunk_type);
+                                    // video_chunk.duration(image.duration);
+                                    let chunk = EncodedVideoChunk::new(&video_chunk).unwrap();
+                                                               
+                                    let mut video_vector = vec![0u8; chunk.byte_length() as usize];
+                                    let video_message = video_vector.as_mut();
+                                    chunk.copy_to_with_u8_array(video_message);
+                                    let data = Uint8Array::from(video_message.as_ref());
+                                    let mut encoded_chunk_init = EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_());
+                                    encoded_chunk_init.duration(duration);
+                                    let encoded_video_chunk = EncodedVideoChunk::new(
+                                        &encoded_chunk_init
+                                    ).unwrap();
+                                    match video.video_decoder.state() {
+                                        web_sys::CodecState::Unconfigured => {
+                                            log::info!("video decoder unconfigured");
+                                        },
+                                        web_sys::CodecState::Configured => {
+                                            if let Err(err) = video.decode(&encoded_video_chunk) {
+                                                error!("error on decode {}", err);
+                                            }
+                                        },
+                                        web_sys::CodecState::Closed => {
+                                            log::info!("video decoder closed");
+                                        },
+                                        _ => {},
+                                    }
                                 }
                             },
                             Message::HostScreenShare { 
@@ -202,7 +213,6 @@ impl Component for Client {
                                 let video_data = Uint8Array::new_with_length(message.len().try_into().unwrap());
                                 video_data.copy_from(&message);
                                 let video_chunk = EncodedVideoChunkInit::new(&video_data, timestamp, chunk_type);
-                                // video_chunk.duration(image.duration);
                                 let chunk = EncodedVideoChunk::new(&video_chunk).unwrap();
                                 
 
@@ -215,12 +225,12 @@ impl Component for Client {
                                 let encoded_video_chunk = EncodedVideoChunk::new(
                                     &encoded_chunk_init
                                 ).unwrap();
-                                match screen_share_decoder.state() {
+                                match screen_share_decoder.video_decoder.state() {
                                     web_sys::CodecState::Unconfigured => {
                                         log::info!("video decoder unconfigured");
                                     },
                                     web_sys::CodecState::Configured => {
-                                        screen_share_decoder.decode(&encoded_video_chunk);
+                                        screen_share_decoder.video_decoder.decode(&encoded_video_chunk);
                                     },
                                     web_sys::CodecState::Closed => {
                                         log::info!("video decoder closed");
@@ -234,33 +244,48 @@ impl Component for Client {
                                 timestamp,
                                 duration
                             } => {     
-                                let _ = audio_context.resume();
-                                let chunk_type = EncodedAudioChunkTypeWrapper::from(chunk_type).0;
-                                let audio_data = &message;
-                                let audio_data_js: js_sys::Uint8Array =
-                                    js_sys::Uint8Array::new_with_length(audio_data.len() as u32);
-                                audio_data_js.copy_from(audio_data.as_slice());
-                                let chunk_type = EncodedAudioChunkTypeWrapper(chunk_type);
-                                let mut audio_chunk_init =
-                                    EncodedAudioChunkInit::new(&audio_data_js.into(), timestamp, chunk_type.0);
-                                audio_chunk_init.duration(duration);
-                                let encoded_audio_chunk = EncodedAudioChunk::new(&audio_chunk_init).unwrap();
-
-                                match audio_decoder.state() {
-                                    web_sys::CodecState::Unconfigured => {
-                                        log::info!("audio decoder unconfigured");
-                                    },
-                                    web_sys::CodecState::Configured => {
-                                        audio_decoder.decode(&encoded_audio_chunk);
-                                    },
-                                    web_sys::CodecState::Closed => {
-                                        log::info!("audio_decoder closed");
-                                    },
-                                    _ => {}
+                                if audio.on_speakers {
+                                    let _ = audio.audio_context.resume();
+                                    let chunk_type = EncodedAudioChunkTypeWrapper::from(chunk_type).0;
+                                    let audio_data = &message;
+                                    let audio_data_js: js_sys::Uint8Array =
+                                        js_sys::Uint8Array::new_with_length(audio_data.len() as u32);
+                                    audio_data_js.copy_from(audio_data.as_slice());
+                                    let chunk_type = EncodedAudioChunkTypeWrapper(chunk_type);
+                                    let mut audio_chunk_init =
+                                        EncodedAudioChunkInit::new(&audio_data_js.into(), timestamp, chunk_type.0);
+                                    audio_chunk_init.duration(duration);
+                                    let encoded_audio_chunk = EncodedAudioChunk::new(&audio_chunk_init).unwrap();
+    
+                                    match audio.audio_decoder.state() {
+                                        web_sys::CodecState::Unconfigured => {
+                                            log::info!("audio decoder unconfigured");
+                                        },
+                                        web_sys::CodecState::Configured => {
+                                            audio.audio_decoder.decode(&encoded_audio_chunk);
+                                        },
+                                        web_sys::CodecState::Closed => {
+                                            log::info!("audio_decoder closed");
+                                        },
+                                        _ => {}
+                                    }    
                                 }
-                                       
-                                                
+                                
                             },
+                            Message::HostSwicthAudio => {
+                                audio.on_speakers = !audio.on_speakers;
+                            },
+                            Message::HostSwicthVideo => {
+                                video.video_start = !video.video_start;
+                                if video.video_start {
+                                    video.video_decoder.configure(&video.video_config);
+                                    video.on_video = !video.on_video;
+                                    video.check_key = true;
+                                } else {
+                                    video.on_video = !video.on_video;
+                                    video.video_decoder.reset();
+                                }
+                            }
                         }
                     },
                     Err(err) => {
@@ -279,7 +304,6 @@ impl Component for Client {
             client_area,
             is_screen_share,
             camera: CameraEncoder::new(aes.clone()),
-            // audio_context
         }
     }
 
@@ -301,8 +325,22 @@ impl Component for Client {
                 if self.camera.select(video) {
                     log::info!("selected");
                     let link = ctx.link().clone();
+                    let on_video = self.camera.get_enabled();
                     let timeout = Timeout::new(1000, move || {
-                        link.send_message(Msg::EnableVideo(true));
+                        link.send_message(Msg::EnableVideo(on_video));
+                    });
+                    timeout.forget();
+                }
+                false
+            }
+            Msg::SwitchVedeo => {
+                let link = ctx.link().clone();
+                let on_video = self.camera.get_enabled();
+                let on_video = self.camera.set_enabled(!on_video);
+                log::info!("{}", on_video);
+                if self.camera.get_enabled() {
+                    let timeout = Timeout::new(1000, move || {
+                        link.send_message(Msg::EnableVideo(on_video));
                     });
                     timeout.forget();
                 }
@@ -339,7 +377,6 @@ impl Component for Client {
                     
                 };
                 self.camera.start(
-                    "email".to_owned(),
                     on_frame,
                     VIDEO_ELEMENT_ID,
                 );
@@ -361,6 +398,7 @@ impl Component for Client {
 
         let mic_callback = ctx.link().callback(Msg::AudioDeviceChanged);
         let cam_callback = ctx.link().callback(Msg::VideoDeviceChanged);
+        let on_video_btn = ctx.link().callback(|_| Msg::SwitchVedeo);
         
         html! {
             <main class="px-3">
@@ -375,7 +413,9 @@ impl Component for Client {
                     </div>
                     <DeviceSelector on_microphone_select={mic_callback} on_camera_select={cam_callback}/>
                     <div class="consumer">
-                        <h3>{"Consumer!"}</h3>
+                        <div>
+                            <button onclick={ on_video_btn }>{"Video"}</button>
+                        </div>
                         <video class="self-camera" autoplay=true id={VIDEO_ELEMENT_ID}></video>
                         <canvas id="render" class="client_canvas" ></canvas>
                     </div>
