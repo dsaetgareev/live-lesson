@@ -45,4 +45,10 @@ pub enum ClientMessage {
         timestamp: f64,
         duration: f64,
     },
+    ClientAudio {
+        message: Vec<u8>,
+        chunk_type: String,
+        timestamp: f64,
+        duration: f64,
+    },
 }

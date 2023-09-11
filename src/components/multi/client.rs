@@ -13,6 +13,7 @@ use log::error;
 
 use crate::encoders::camera_encoder::CameraEncoder;
 use crate::crypto::aes::Aes128State;
+use crate::encoders::microphone_encoder::MicrophoneEncoder;
 use crate::utils::device::{create_video_decoder, create_audio_decoder};
 use crate::utils::inputs::Message;
 use crate::utils::inputs::ClientMessage;
@@ -31,6 +32,7 @@ pub enum Msg {
     VideoDeviceChanged(String),
     EnableVideo(bool),
     AudioDeviceChanged(String),
+    EnableMicrophone(bool),
     SwitchVedeo,
 }
 
@@ -40,6 +42,7 @@ pub struct Client {
     client_area: NodeRef,
     is_screen_share: Rc<RefCell<bool>>,
     camera: CameraEncoder,
+    microphone: MicrophoneEncoder,
 }
 
 impl Component for Client {
@@ -304,6 +307,7 @@ impl Component for Client {
             client_area,
             is_screen_share,
             camera: CameraEncoder::new(aes.clone()),
+            microphone: MicrophoneEncoder::new(aes.clone()),
         }
     }
 
@@ -384,8 +388,53 @@ impl Component for Client {
                 false
             },
             Msg::AudioDeviceChanged(audio) => {
+                if self.microphone.select(audio) {
+                    let link = ctx.link().clone();
+                    let timeout = Timeout::new(1000, move || {
+                        link.send_message(Msg::EnableMicrophone(true));
+                    });
+                    timeout.forget();
+                }
                 false
             },
+            Msg::EnableMicrophone(should_enable) => {
+                if !should_enable {
+                    return true;
+                }
+
+                let ms = self.mini_client.clone();
+                let on_audio = move |chunk: web_sys::EncodedAudioChunk| {
+                    let duration = chunk.duration().unwrap();
+                    let mut buffer: [u8; 100000] = [0; 100000];
+                    let byte_length = chunk.byte_length() as usize;
+
+                    chunk.copy_to_with_u8_array(&mut buffer);
+
+                    let data = buffer[0..byte_length as usize].to_vec();
+
+                    let chunk_type = EncodedAudioChunkTypeWrapper(chunk.type_()).to_string();
+                    let timestamp = chunk.timestamp();
+                    // let timestamp = Date::new_0().get_time() as f64;
+                    // let data = aes.encrypt(&data).unwrap();
+                    let message = ClientMessage::ClientAudio { 
+                        message: data,
+                        chunk_type,
+                        timestamp,
+                        duration
+                    };
+                    match serde_json::to_string(&message) {
+                        Ok(message) => {
+                            let _ = ms.send_message_to_host(&message);
+                        },
+                        Err(_) => todo!(),
+                    };                    
+                };
+                self.microphone.start(
+                    "email".to_owned(),
+                    on_audio
+                );
+                false
+            }
         }
     }
 

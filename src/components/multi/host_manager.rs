@@ -3,9 +3,9 @@ use std::{collections::HashMap, cell::RefCell, rc::Rc};
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::Closure;
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
-use web_sys::{EncodedVideoChunk, EncodedVideoChunkInit, VideoDecoder};
+use web_sys::{EncodedVideoChunk, EncodedVideoChunkInit, VideoDecoder, EncodedAudioChunkInit, EncodedAudioChunk};
 
-use crate::{utils, utils::{inputs::{Message, ClientMessage}, dom::create_video_id, device::create_video_decoder_frame}, wrappers::EncodedVideoChunkTypeWrapper};
+use crate::{utils, utils::{inputs::{Message, ClientMessage}, dom::create_video_id, device::{create_video_decoder_frame, create_audio_decoder}}, wrappers::{EncodedVideoChunkTypeWrapper, EncodedAudioChunkTypeWrapper}};
 
 
 const TEXTAREA_ID: &str = "document-textarea";
@@ -72,6 +72,7 @@ impl HostManager {
         let on_message_callback = {
             let players = self.players.clone();
             let decoders = self.decoders.clone();
+            let audio = create_audio_decoder();
             move |user_id: UserId, message: String| {
                 // let input = serde_json::from_str::<PlayerInput>(&message).unwrap();    
                 let _ = match serde_json::from_str::<ClientMessage>(&message) {
@@ -130,6 +131,37 @@ impl HostManager {
                                     _ => {},
                                 }
                             },
+                            ClientMessage::ClientAudio { 
+                                message,
+                                chunk_type,
+                                timestamp,
+                                duration
+                            } => {
+                                let _ = audio.audio_context.resume();
+                                    let chunk_type = EncodedAudioChunkTypeWrapper::from(chunk_type).0;
+                                    let audio_data = &message;
+                                    let audio_data_js: js_sys::Uint8Array =
+                                        js_sys::Uint8Array::new_with_length(audio_data.len() as u32);
+                                    audio_data_js.copy_from(audio_data.as_slice());
+                                    let chunk_type = EncodedAudioChunkTypeWrapper(chunk_type);
+                                    let mut audio_chunk_init =
+                                        EncodedAudioChunkInit::new(&audio_data_js.into(), timestamp, chunk_type.0);
+                                    audio_chunk_init.duration(duration);
+                                    let encoded_audio_chunk = EncodedAudioChunk::new(&audio_chunk_init).unwrap();
+    
+                                    match audio.audio_decoder.state() {
+                                        web_sys::CodecState::Unconfigured => {
+                                            log::info!("audio decoder unconfigured");
+                                        },
+                                        web_sys::CodecState::Configured => {
+                                            audio.audio_decoder.decode(&encoded_audio_chunk);
+                                        },
+                                        web_sys::CodecState::Closed => {
+                                            log::info!("audio_decoder closed");
+                                        },
+                                        _ => {}
+                                    }    
+                            }
                         }
                     },
                     Err(err) => {

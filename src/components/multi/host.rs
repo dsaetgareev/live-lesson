@@ -292,7 +292,7 @@ impl Component for Host {
                 if self.microphone.select(audio) {
                     let link = ctx.link().clone();
                     let timeout = Timeout::new(1000, move || {
-                        link.send_message(Msg::EnableMicrophone(true));
+                        link.send_message(Msg::EnableMicrophone(false));
                     });
                     timeout.forget();
                 }
