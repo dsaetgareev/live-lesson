@@ -3,10 +3,9 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
 use gloo_timers::callback::Timeout;
-use js_sys::Uint8Array;
 use wasm_peers::one_to_many::MiniClient;
 use wasm_peers::{get_random_session_id, ConnectionType, SessionId};
-use web_sys::{EncodedVideoChunkInit, EncodedVideoChunk, EncodedAudioChunkInit, EncodedAudioChunk};
+use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk};
 use yew::{html, Component, Context, Html, NodeRef};
 use log::error;
 
@@ -14,11 +13,11 @@ use crate::encoders::camera_encoder::CameraEncoder;
 use crate::crypto::aes::Aes128State;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
 use crate::models::packet::VideoPacket;
-use crate::utils::device::{create_video_decoder, create_audio_decoder};
+use crate::utils::device::{create_video_decoder, create_audio_decoder, create_video_decoder_frame};
 use crate::utils::inputs::Message;
 use crate::utils::inputs::ClientMessage;
 use crate::utils;
-use crate::wrappers::{EncodedVideoChunkTypeWrapper, EncodedAudioChunkTypeWrapper};
+use crate::wrappers::{EncodedAudioChunkTypeWrapper};
 use crate::media_devices::device_selector::DeviceSelector;
 
 
@@ -114,13 +113,12 @@ impl Component for Client {
 
         let is_screen_share = Rc::new(RefCell::new(false));
         let video = create_video_decoder("render".to_owned());
-        let screen_share_decoder = create_video_decoder("screen_share".to_owned());
+        let screen_share_decoder = create_video_decoder_frame("screen_share".to_owned());
         let audio = create_audio_decoder();
         let on_message_callback = {
             let _aes = Arc::new(Aes128State::new(true));
-            let is_screen_share = is_screen_share.clone();
             let mut video = video.clone();
-            let screen_share_decoder = screen_share_decoder.clone();
+            let mut screen_share_decoder = screen_share_decoder.clone();
             let mut audio = audio.clone();
             move |message: String| {
                 let _ = match serde_json::from_str::<Message>(&message) {
@@ -162,79 +160,56 @@ impl Component for Client {
                             Message::HostVideo { 
                                 message,
                             } => {
-                                // if video.on_video {
-                                //     if video.check_key {
-                                //         if message.chunk_type != "key" {
-                                //             return;
-                                //         }
-                                //         video.check_key = false;
-                                //     }
-                                //     let chunk_type = EncodedVideoChunkTypeWrapper::from(message.chunk_type.as_str()).0;
-                                //     let video_data = Uint8Array::new_with_length(message.data.len().try_into().unwrap());
-                                //     video_data.copy_from(&message.data);
-                                //     let video_chunk = EncodedVideoChunkInit::new(&video_data, message.timestamp, chunk_type);
-                                //     // video_chunk.duration(image.duration);
-                                //     let chunk = EncodedVideoChunk::new(&video_chunk).unwrap();
-                                                               
-                                //     let mut video_vector = vec![0u8; chunk.byte_length() as usize];
-                                //     let video_message = video_vector.as_mut();
-                                //     chunk.copy_to_with_u8_array(video_message);
-                                //     let data = Uint8Array::from(video_message.as_ref());
-                                //     let mut encoded_chunk_init = EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_());
-                                //     encoded_chunk_init.duration(message.duration);
-                                //     let encoded_video_chunk = EncodedVideoChunk::new(
-                                //         &encoded_chunk_init
-                                //     ).unwrap();
-                                //     match video.video_decoder.state() {
-                                //         web_sys::CodecState::Unconfigured => {
-                                //             log::info!("video decoder unconfigured");
-                                //         },
-                                //         web_sys::CodecState::Configured => {
-                                //             if let Err(err) = video.decode(&encoded_video_chunk) {
-                                //                 error!("error on decode {}", err);
-                                //             }
-                                //         },
-                                //         web_sys::CodecState::Closed => {
-                                //             log::info!("video decoder closed");
-                                //             video.video_decoder.configure(&video.video_config);
-                                //             video.check_key = true;
-                                //         },
-                                //         _ => {},
-                                //     }
-                                // }
+                                if video.on_video {
+                                     if video.check_key {
+                                        if message.chunk_type != "key" {
+                                            return;
+                                        }
+                                        video.check_key = false;
+                                    }
+                                    match video.video_decoder.state() {
+                                        web_sys::CodecState::Unconfigured => {
+                                            log::info!("video decoder unconfigured");
+                                        },
+                                        web_sys::CodecState::Configured => {
+                                            if let Err(err) = video.decode(Arc::new(message)) {
+                                                error!("error on decode {}", err);
+                                            }
+                                        },
+                                        web_sys::CodecState::Closed => {
+                                            log::info!("video decoder closed");
+                                            video.video_decoder.configure(&video.video_config);
+                                            video.check_key = true;
+                                        },
+                                        _ => {},
+                                    }
+                                }
+                            },
+                            Message::HostIsScreenShare { 
+                                message
+                            } => {
+                                on_screen_share(message);
                             },
                             Message::HostScreenShare { 
-                                message,
-                                chunk_type,
-                                timestamp,
-                                duration,
+                                message
                             } => {
-                                *is_screen_share.borrow_mut() = true;
-                                let chunk_type = EncodedVideoChunkTypeWrapper::from(chunk_type.as_str()).0;
-                                let video_data = Uint8Array::new_with_length(message.len().try_into().unwrap());
-                                video_data.copy_from(&message);
-                                let video_chunk = EncodedVideoChunkInit::new(&video_data, timestamp, chunk_type);
-                                let chunk = EncodedVideoChunk::new(&video_chunk).unwrap();
-                                
-
-                                let mut video_vector = vec![0u8; chunk.byte_length() as usize];
-                                let video_message = video_vector.as_mut();
-                                chunk.copy_to_with_u8_array(video_message);
-                                let data = Uint8Array::from(video_message.as_ref());
-                                let mut encoded_chunk_init = EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_());
-                                encoded_chunk_init.duration(duration);
-                                let encoded_video_chunk = EncodedVideoChunk::new(
-                                    &encoded_chunk_init
-                                ).unwrap();
+                                if screen_share_decoder.check_key {
+                                        if message.chunk_type != "key" {
+                                            return;
+                                        }
+                                        screen_share_decoder.check_key = false;
+                                } 
                                 match screen_share_decoder.video_decoder.state() {
                                     web_sys::CodecState::Unconfigured => {
                                         log::info!("video decoder unconfigured");
                                     },
                                     web_sys::CodecState::Configured => {
-                                        screen_share_decoder.video_decoder.decode(&encoded_video_chunk);
+                                        let _ = screen_share_decoder.decode_break(Arc::new(message));
                                     },
                                     web_sys::CodecState::Closed => {
                                         log::info!("video decoder closed");
+                                        video.video_decoder.configure(&video.video_config);
+                                        video.check_key = true;
                                     },
                                     _ => {},
                                 }
@@ -428,7 +403,6 @@ impl Component for Client {
         let disabled = true;
         let placeholder = "This is a live document shared with other users.\nYou will be allowed \
                            to write once other join, or your connection is established.";
-        let is_screen = self.is_screen_share.borrow();
 
         let mic_callback = ctx.link().callback(Msg::AudioDeviceChanged);
         let cam_callback = ctx.link().callback(Msg::VideoDeviceChanged);
@@ -436,7 +410,7 @@ impl Component for Client {
         
         html! {
             <main class="px-3">
-                if !*is_screen {
+                <div id="container">
                     <div class="row">
                         <div class="col-6">
                             <textarea id={ TEXTAREA_ID_CLIENT } ref={ self.client_area.clone() } class="document" cols="100" rows="30" { placeholder } { oninput }/>
@@ -453,17 +427,25 @@ impl Component for Client {
                         <video class="self-camera" autoplay=true id={VIDEO_ELEMENT_ID}></video>
                         <canvas id="render" class="client_canvas" ></canvas>
                     </div>
-                    <div class="consumer">
-                        <h3>{"демонстрация экрана"}</h3>
-                        <canvas id="screen_share" class="client_canvas" ></canvas>
-                    </div>
-                } else {
-                    <div class="consumer">
-                        <canvas id="screen_share" class="screen_canvas" ></canvas>
-                    </div>
-                }
+                </div>
                 
+                <div id="shcreen_container" class="consumer unvis">
+                    <canvas id="screen_share" class="screen_canvas" ></canvas>
+                </div>
             </main>
         }
     }
+}
+
+fn on_screen_share(is_share: bool) {
+    let common_container = utils::dom::get_element("container").unwrap();
+    let shcreen_container = utils::dom::get_element("shcreen_container").unwrap();
+    if is_share {
+        common_container.set_class_name("unvis");
+        shcreen_container.set_class_name("vis");
+    } else {
+        common_container.set_class_name("vis");
+        shcreen_container.set_class_name("unvis");
+    }
+   
 }

@@ -1,6 +1,5 @@
 use std::{collections::HashMap, cell::RefCell, rc::Rc, sync::Arc};
 
-use wasm_bindgen::prelude::Closure;
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
 use web_sys::{ EncodedAudioChunkInit, EncodedAudioChunk };
 

@@ -40,8 +40,7 @@ impl Video {
     }
 
     pub fn decode_break(&mut self, packet: Arc<VideoPacket>) -> Result<(), anyhow::Error> {
-        let new_sequence_number = packet.sequence_number; 
-        let cash_size = self.cache.len();
+        let new_sequence_number = packet.sequence_number;
         if packet.chunk_type == "key" {
             self.decode_packet(packet);
             self.sequence = Some(new_sequence_number);
@@ -52,7 +51,7 @@ impl Video {
             if is_next_frame {
                 self.decode_packet(packet);
                 self.sequence = Some(new_sequence_number);
-                self.prune_older_frames_from_buffer(sequence);
+                // self.prune_older_frames_from_buffer(sequence);
             } else {
                 if is_future_frame {
                     // self.cache.insert(new_sequence_number, packet);

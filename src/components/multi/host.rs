@@ -17,7 +17,7 @@ use crate::utils::inputs::Message;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
 use crate::encoders::screen_encoder::ScreenEncoder;
 use crate::utils::{self, dom::get_window};
-use crate::wrappers::{EncodedVideoChunkTypeWrapper, EncodedAudioChunkTypeWrapper};
+use crate::wrappers::{EncodedAudioChunkTypeWrapper};
 
 const TEXTAREA_ID: &str = "document-textarea";
 const TEXTAREA_ID_CLIENT: &str = "client-textarea";
@@ -34,6 +34,7 @@ pub enum Msg {
     EnableScreenShare(bool),
     AudioDeviceChanged(String),
     VideoDeviceChanged(String),
+    ResumeVideo,
     SwitchSpeakers(String),
     SwitchVideo(String),
 }
@@ -206,26 +207,24 @@ impl Component for Host {
                 false
             },
             Self::Message::EnableScreenShare(should_enable) => {
-                ctx.link().send_message(Msg::EnableVideo(false));
+               
                 if !should_enable {
                     return true;
                 }
+                self.camera.set_enabled(false);
 
+                
                 let ms = self.host_manager.as_ref().unwrap().mini_server.clone();
-                let on_frame = move |chunk: web_sys::EncodedVideoChunk| {
-                    let duration = chunk.duration().expect("no duration video chunk");
-                    let mut buffer: [u8; 100000] = [0; 100000];
-                    let byte_length = chunk.byte_length() as usize;
-                    chunk.copy_to_with_u8_array(&mut buffer);
-                    let data = buffer[0..byte_length].to_vec();
-                    let chunk_type = EncodedVideoChunkTypeWrapper(chunk.type_()).to_string();
-                    let timestamp = chunk.timestamp();
-                    // let data = aes.encrypt(&data).unwrap();
+                match serde_json::to_string(&Message::HostIsScreenShare { message: true }) {
+                    Ok(message) => {
+                        let _ = ms.send_message_to_all(&message);
+                    },
+                    Err(_) => todo!(),
+                }
+                let on_frame = move |packet: VideoPacket| {
+                    
                     let message = Message::HostScreenShare { 
-                        message: data,
-                        chunk_type,
-                        timestamp,
-                        duration
+                        message: packet,
                     };
                     match serde_json::to_string(&message) {
                         Ok(message) => {
@@ -234,9 +233,28 @@ impl Component for Host {
                         Err(_) => todo!(),
                     };                    
                 };
+
+                let ms = self.host_manager.as_ref().unwrap().mini_server.clone();
+                let link = ctx.link().clone();
+                let on_stop_share = move || {
+                    link.send_message(Msg::ResumeVideo);
+                    link.send_message(Msg::EnableVideo(true));
+                    let message = Message::HostIsScreenShare { message: false };
+                    match serde_json::to_string(&message) {
+                        Ok(message) => {
+                            let _ = ms.send_message_to_all(&message);
+                        },
+                        Err(_) => todo!(),
+                    };   
+                };
                 self.screen.start(
                     on_frame,
+                    on_stop_share,
                 );
+                false
+            },
+            Self::Message::ResumeVideo => {
+                self.camera.set_enabled(true);
                 false
             },
             Self::Message::EnableMicrophone(should_enable) => {
@@ -290,7 +308,7 @@ impl Component for Host {
                 if self.camera.select(video) {
                     let link = ctx.link().clone();
                     let timeout = Timeout::new(1000, move || {
-                        link.send_message(Msg::EnableVideo(false));
+                        link.send_message(Msg::EnableVideo(true));
                     });
                     timeout.forget();
                 }
@@ -336,8 +354,8 @@ impl Component for Host {
                                 <textarea id={ key } client_id={ client_id.clone() } value={ value } class="doc-item" cols="100" rows="30" />
                                 // <video id={ video_id } client_id={ client_id } autoplay=true ></video>
                                 <div class="col">
-                                    <button onclick={ on_switch_video }>{"video ->"}</button>
-                                    <button onclick={ on_switch_speakers }>{"audio ->"}</button>
+                                    <button onclick={ on_switch_video } client_id={ client_id.clone() } >{"video ->"}</button>
+                                    <button onclick={ on_switch_speakers } client_id={ client_id.clone() }>{"audio ->"}</button>
                                 </div>
                                 <canvas id={ video_id } client_id={ client_id } class="item-canvas" ></canvas>
                             </div>

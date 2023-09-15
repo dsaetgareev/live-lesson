@@ -25,6 +25,7 @@ use super::encoder_state::EncoderState;
 use crate::constants::SCREEN_VIDEO_HEIGHT;
 use crate::constants::SCREEN_VIDEO_WIDTH;
 use crate::constants::VIDEO_CODEC;
+use crate::models::packet::VideoPacket;
 use crate::utils;
 
 pub struct ScreenEncoder {
@@ -48,7 +49,8 @@ impl ScreenEncoder {
 
     pub fn start(
         &mut self, 
-        on_frame: impl Fn(web_sys::EncodedVideoChunk) + 'static,
+        on_frame: impl Fn(VideoPacket) + 'static,
+        on_stop_share: impl Fn() + 'static,
     ) {
         let EncoderState {
             enabled, destroy, ..
@@ -56,9 +58,12 @@ impl ScreenEncoder {
         let on_frame = Box::new(on_frame);
         let screen_output_handler = {
             let on_frame = on_frame;
+            let mut sequence_number: u64 = 0;
             Box::new(move |chunk: JsValue| {
                 let chunk = web_sys::EncodedVideoChunk::from(chunk);
-                on_frame(chunk);
+                let packet = VideoPacket::new(chunk, sequence_number);
+                on_frame(packet);
+                sequence_number += 1;
             })
         };
         wasm_bindgen_futures::spawn_local(async move {
@@ -88,6 +93,9 @@ impl ScreenEncoder {
                 screen_error_handler.as_ref().unchecked_ref(),
                 screen_output_handler.as_ref().unchecked_ref(),
             );
+
+            screen_output_handler.forget();
+            screen_error_handler.forget();
 
             let screen_encoder = Box::new(VideoEncoder::new(&screen_encoder_init).unwrap());
             let mut screen_encoder_config =
@@ -125,10 +133,15 @@ impl ScreenEncoder {
                             let mut opts = VideoEncoderEncodeOptions::new();
                             screen_frame_counter = (screen_frame_counter + 1) % 50;
                             opts.key_frame(screen_frame_counter == 0);
+                            if video_frame.is_undefined() {
+                                on_stop_share();
+                                return;
+                            }
                             screen_encoder.encode_with_options(&video_frame, &opts);
                             video_frame.close();
                         }
                         Err(e) => {
+                            error!("rerererererererere");
                             error!("error {:?}", e);
                         }
                     }

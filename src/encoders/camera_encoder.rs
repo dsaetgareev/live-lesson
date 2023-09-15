@@ -136,6 +136,9 @@ impl CameraEncoder {
                 video_output_handler.as_ref().unchecked_ref(),
             );
 
+            video_error_handler.forget();
+            video_output_handler.forget();
+
             let video_encoder = Box::new(VideoEncoder::new(&video_encoder_init).unwrap());
 
             let video_settings = &mut video_track
@@ -148,7 +151,7 @@ impl CameraEncoder {
             let mut video_encoder_config =
                 VideoEncoderConfig::new(VIDEO_CODEC, VIDEO_HEIGHT as u32, VIDEO_WIDTH as u32);
 
-            video_encoder_config.bitrate(10_000f64);
+            video_encoder_config.bitrate(30_000f64);
             video_encoder_config.latency_mode(LatencyMode::Realtime);
             video_encoder.configure(&video_encoder_config);
 

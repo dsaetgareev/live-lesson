@@ -16,11 +16,11 @@ pub enum Message {
     HostVideo {
         message: VideoPacket
     },
+    HostIsScreenShare {
+        message: bool,
+    },
     HostScreenShare {
-        message: Vec<u8>,
-        chunk_type: String,
-        timestamp: f64,
-        duration: f64
+        message: VideoPacket
     },
     HostAudio {
         message: Vec<u8>,

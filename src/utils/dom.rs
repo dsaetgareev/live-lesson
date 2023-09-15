@@ -21,7 +21,7 @@ pub fn get_query_params_multi() -> UrlSearchParams {
     UrlSearchParams::new_with_str(&search).unwrap()
 }
 
-fn get_element(id: &str) -> crate::Result<Element> {
+pub fn get_element(id: &str) -> crate::Result<Element> {
     get_window()?
         .document()
         .ok_or_else(|| crate::Error::MissingElement("document node".to_owned()))?

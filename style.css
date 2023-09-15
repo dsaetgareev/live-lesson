@@ -135,5 +135,17 @@ table.listview {
   height: 10vh;
 }
 
+.vis {
+  position: absolute;
+  top: -0px;
+  left: -0px;
+}
+
+.unvis {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+}
+
 
 
