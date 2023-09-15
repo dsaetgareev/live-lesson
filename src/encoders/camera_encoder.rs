@@ -4,7 +4,7 @@ use js_sys::JsString;
 use js_sys::Reflect;
 use log::debug;
 use log::error;
-use std::sync::{atomic::Ordering, Arc};
+use std::sync::atomic::Ordering;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
@@ -29,18 +29,16 @@ use super::encoder_state::EncoderState;
 use crate::constants::VIDEO_CODEC;
 use crate::constants::VIDEO_HEIGHT;
 use crate::constants::VIDEO_WIDTH;
-use crate::crypto::aes::Aes128State;
+use crate::models::packet::VideoPacket;
 use crate::utils::dom::get_window;
 
 pub struct CameraEncoder {
-    aes: Arc<Aes128State>,
     state: EncoderState,
 }
 
 impl CameraEncoder {
-    pub fn new(aes: Arc<Aes128State>) -> Self {
+    pub fn new() -> Self {
         Self {
-            aes,
             state: EncoderState::new(),
         }
     }
@@ -61,7 +59,7 @@ impl CameraEncoder {
 
     pub fn start(
         &mut self,
-        on_frame: impl Fn(web_sys::EncodedVideoChunk) + 'static,
+        on_frame: impl Fn(VideoPacket) + 'static,
         video_elem_id: &str,
     ) {
         // 1. Query the first device with a camera and a mic attached.
@@ -77,9 +75,12 @@ impl CameraEncoder {
         } = self.state.clone();
         let video_output_handler = {
             let on_frame = on_frame;
+            let mut sequence_number: u64 = 0;
             Box::new(move |chunk: JsValue| {
                 let chunk = web_sys::EncodedVideoChunk::from(chunk);
-                on_frame(chunk);
+                let packet = VideoPacket::new(chunk, sequence_number);
+                on_frame(packet);
+                sequence_number += 1;
             })
         };
         let device_id = if let Some(vid) = &self.state.selected {
@@ -147,7 +148,7 @@ impl CameraEncoder {
             let mut video_encoder_config =
                 VideoEncoderConfig::new(VIDEO_CODEC, VIDEO_HEIGHT as u32, VIDEO_WIDTH as u32);
 
-            video_encoder_config.bitrate(100_000f64);
+            video_encoder_config.bitrate(10_000f64);
             video_encoder_config.latency_mode(LatencyMode::Realtime);
             video_encoder.configure(&video_encoder_config);
 

@@ -1,8 +1,4 @@
-
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::str::FromStr;
-use std::sync::Arc;
 
 use gloo_timers::callback::Timeout;
 use wasm_bindgen::JsCast;
@@ -13,9 +9,9 @@ use yew::{html, Component, Context, Html, NodeRef};
 use log::error;
 
 use crate::encoders::camera_encoder::CameraEncoder;
-use crate::crypto::aes::Aes128State;
 use crate::media_devices::device_selector::DeviceSelector;
 use crate::components::multi::host_manager::HostManager;
+use crate::models::packet::VideoPacket;
 use crate::utils::dom::create_video_id;
 use crate::utils::inputs::Message;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
@@ -85,15 +81,14 @@ impl Component for Host {
         let host_area = NodeRef::default();
         let client_area = NodeRef::default();
         ctx.link().send_message(Msg::Init);
-        let aes = Arc::new(Aes128State::new(true));
         Self {
             session_id,
             host_manager: None,
             tick_callback,
             host_area,
             client_area,
-            camera: CameraEncoder::new(aes.clone()),
-            microphone: MicrophoneEncoder::new(aes.clone()),
+            camera: CameraEncoder::new(),
+            microphone: MicrophoneEncoder::new(),
             screen: ScreenEncoder::new(),
         }
     }
@@ -101,8 +96,13 @@ impl Component for Host {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Init => {
+                let link = ctx.link().clone();
+                let on_tick = move || {
+                    link.send_message(Msg::Tick)
+                };
                 self.host_manager = Some(init(
-                    self.session_id.clone()
+                    self.session_id.clone(),
+                    on_tick,
                 ));
                 ctx.link().send_message(Msg::Tick);
                 false
@@ -187,20 +187,9 @@ impl Component for Host {
                 }
 
                 let ms = self.host_manager.as_ref().unwrap().mini_server.clone();
-                let on_frame = move |chunk: web_sys::EncodedVideoChunk| {
-                    let duration = chunk.duration().expect("no duration video chunk");
-                    let mut buffer: [u8; 100000] = [0; 100000];
-                    let byte_length = chunk.byte_length() as usize;
-                    chunk.copy_to_with_u8_array(&mut buffer);
-                    let data = buffer[0..byte_length].to_vec();
-                    let chunk_type = EncodedVideoChunkTypeWrapper(chunk.type_()).to_string();
-                    let timestamp = chunk.timestamp();
-                    // let data = aes.encrypt(&data).unwrap();
+                let on_frame = move |packet: VideoPacket| {
                     let message = Message::HostVideo { 
-                        message: data,
-                        chunk_type,
-                        timestamp,
-                        duration
+                        message: packet
                     };
                     match serde_json::to_string(&message) {
                         Ok(message) => {
@@ -281,9 +270,8 @@ impl Component for Host {
                         },
                         Err(_) => todo!(),
                     };                    
-                };
+                };              
                 self.microphone.start(
-                    "email".to_owned(),
                     on_audio
                 );
                 false
@@ -292,7 +280,7 @@ impl Component for Host {
                 if self.microphone.select(audio) {
                     let link = ctx.link().clone();
                     let timeout = Timeout::new(1000, move || {
-                        link.send_message(Msg::EnableMicrophone(false));
+                        link.send_message(Msg::EnableMicrophone(true));
                     });
                     timeout.forget();
                 }
@@ -302,7 +290,7 @@ impl Component for Host {
                 if self.camera.select(video) {
                     let link = ctx.link().clone();
                     let timeout = Timeout::new(1000, move || {
-                        link.send_message(Msg::EnableVideo(true));
+                        link.send_message(Msg::EnableVideo(false));
                     });
                     timeout.forget();
                 }
@@ -343,17 +331,17 @@ impl Component for Host {
             let on_switch_video = ctx.link().callback(move |_|  Msg::SwitchVideo(video_switch_id.clone()));
             html! {
                     <>
-                        <div>
+                        <div class="col-sm">
                             <div client_id={ client_id.clone() } class="col" onclick={ item_click.clone() }>
                                 <textarea id={ key } client_id={ client_id.clone() } value={ value } class="doc-item" cols="100" rows="30" />
                                 // <video id={ video_id } client_id={ client_id } autoplay=true ></video>
-                                
+                                <div class="col">
+                                    <button onclick={ on_switch_video }>{"video ->"}</button>
+                                    <button onclick={ on_switch_speakers }>{"audio ->"}</button>
+                                </div>
                                 <canvas id={ video_id } client_id={ client_id } class="item-canvas" ></canvas>
                             </div>
-                            <div class="col">
-                                <button onclick={ on_switch_video }>{"video"}</button>
-                                <button onclick={ on_switch_speakers }>{"audio"}</button>
-                            </div>
+                            
                         </div>
                         
                     </>
@@ -393,7 +381,7 @@ impl Component for Host {
         let screen_share_cb = ctx.link().callback(|_| Msg::EnableScreenShare(true)); 
 
         html! {
-            <main class="px-3">
+            <main class="">
                 <div class="row">
                     { render() }
                 </div>
@@ -434,7 +422,10 @@ impl Component for Host {
 
 }
 
-fn init(session_id: SessionId) -> HostManager {
+fn init(
+    session_id: SessionId,
+    on_tick: impl Fn() + 'static,
+) -> HostManager {
     let connection_type = ConnectionType::StunAndTurn {
         stun_urls: env!("STUN_SERVER_URLS").to_string(),
         turn_urls: env!("TURN_SERVER_URLS").to_string(),
@@ -444,6 +435,6 @@ fn init(session_id: SessionId) -> HostManager {
     let signaling_server_url = concat!(env!("SIGNALING_SERVER_URL"), "/one-to-many");
 
     let mut host_manager = HostManager::new(session_id, connection_type, signaling_server_url);
-    host_manager.init();
+    host_manager.init(on_tick);
     host_manager
 }

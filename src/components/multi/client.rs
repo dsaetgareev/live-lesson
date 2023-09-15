@@ -4,21 +4,20 @@ use std::str::FromStr;
 use std::sync::Arc;
 use gloo_timers::callback::Timeout;
 use js_sys::Uint8Array;
-use wasm_bindgen::prelude::Closure;
 use wasm_peers::one_to_many::MiniClient;
 use wasm_peers::{get_random_session_id, ConnectionType, SessionId};
-use web_sys::{EncodedVideoChunkInit, EncodedVideoChunk, EncodedAudioChunkInit, EncodedAudioChunk, AudioContext};
+use web_sys::{EncodedVideoChunkInit, EncodedVideoChunk, EncodedAudioChunkInit, EncodedAudioChunk};
 use yew::{html, Component, Context, Html, NodeRef};
 use log::error;
 
 use crate::encoders::camera_encoder::CameraEncoder;
 use crate::crypto::aes::Aes128State;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
+use crate::models::packet::VideoPacket;
 use crate::utils::device::{create_video_decoder, create_audio_decoder};
 use crate::utils::inputs::Message;
 use crate::utils::inputs::ClientMessage;
 use crate::utils;
-use crate::utils::models::Audio;
 use crate::wrappers::{EncodedVideoChunkTypeWrapper, EncodedAudioChunkTypeWrapper};
 use crate::media_devices::device_selector::DeviceSelector;
 
@@ -118,7 +117,7 @@ impl Component for Client {
         let screen_share_decoder = create_video_decoder("screen_share".to_owned());
         let audio = create_audio_decoder();
         let on_message_callback = {
-            let aes = Arc::new(Aes128State::new(true));
+            let _aes = Arc::new(Aes128State::new(true));
             let is_screen_share = is_screen_share.clone();
             let mut video = video.clone();
             let screen_share_decoder = screen_share_decoder.clone();
@@ -162,48 +161,47 @@ impl Component for Client {
                             },
                             Message::HostVideo { 
                                 message,
-                                chunk_type,
-                                timestamp,
-                                duration
                             } => {
-                                if video.on_video {
-                                    if video.check_key {
-                                        if chunk_type != "key" {
-                                            return;
-                                        }
-                                        video.check_key = false;
-                                    }
-                                    let chunk_type = EncodedVideoChunkTypeWrapper::from(chunk_type.as_str()).0;
-                                    let video_data = Uint8Array::new_with_length(message.len().try_into().unwrap());
-                                    video_data.copy_from(&message);
-                                    let video_chunk = EncodedVideoChunkInit::new(&video_data, timestamp, chunk_type);
-                                    // video_chunk.duration(image.duration);
-                                    let chunk = EncodedVideoChunk::new(&video_chunk).unwrap();
+                                // if video.on_video {
+                                //     if video.check_key {
+                                //         if message.chunk_type != "key" {
+                                //             return;
+                                //         }
+                                //         video.check_key = false;
+                                //     }
+                                //     let chunk_type = EncodedVideoChunkTypeWrapper::from(message.chunk_type.as_str()).0;
+                                //     let video_data = Uint8Array::new_with_length(message.data.len().try_into().unwrap());
+                                //     video_data.copy_from(&message.data);
+                                //     let video_chunk = EncodedVideoChunkInit::new(&video_data, message.timestamp, chunk_type);
+                                //     // video_chunk.duration(image.duration);
+                                //     let chunk = EncodedVideoChunk::new(&video_chunk).unwrap();
                                                                
-                                    let mut video_vector = vec![0u8; chunk.byte_length() as usize];
-                                    let video_message = video_vector.as_mut();
-                                    chunk.copy_to_with_u8_array(video_message);
-                                    let data = Uint8Array::from(video_message.as_ref());
-                                    let mut encoded_chunk_init = EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_());
-                                    encoded_chunk_init.duration(duration);
-                                    let encoded_video_chunk = EncodedVideoChunk::new(
-                                        &encoded_chunk_init
-                                    ).unwrap();
-                                    match video.video_decoder.state() {
-                                        web_sys::CodecState::Unconfigured => {
-                                            log::info!("video decoder unconfigured");
-                                        },
-                                        web_sys::CodecState::Configured => {
-                                            if let Err(err) = video.decode(&encoded_video_chunk) {
-                                                error!("error on decode {}", err);
-                                            }
-                                        },
-                                        web_sys::CodecState::Closed => {
-                                            log::info!("video decoder closed");
-                                        },
-                                        _ => {},
-                                    }
-                                }
+                                //     let mut video_vector = vec![0u8; chunk.byte_length() as usize];
+                                //     let video_message = video_vector.as_mut();
+                                //     chunk.copy_to_with_u8_array(video_message);
+                                //     let data = Uint8Array::from(video_message.as_ref());
+                                //     let mut encoded_chunk_init = EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_());
+                                //     encoded_chunk_init.duration(message.duration);
+                                //     let encoded_video_chunk = EncodedVideoChunk::new(
+                                //         &encoded_chunk_init
+                                //     ).unwrap();
+                                //     match video.video_decoder.state() {
+                                //         web_sys::CodecState::Unconfigured => {
+                                //             log::info!("video decoder unconfigured");
+                                //         },
+                                //         web_sys::CodecState::Configured => {
+                                //             if let Err(err) = video.decode(&encoded_video_chunk) {
+                                //                 error!("error on decode {}", err);
+                                //             }
+                                //         },
+                                //         web_sys::CodecState::Closed => {
+                                //             log::info!("video decoder closed");
+                                //             video.video_decoder.configure(&video.video_config);
+                                //             video.check_key = true;
+                                //         },
+                                //         _ => {},
+                                //     }
+                                // }
                             },
                             Message::HostScreenShare { 
                                 message,
@@ -300,14 +298,13 @@ impl Component for Client {
         };
         
         mini_client.start(on_open_callback, on_message_callback);
-        let aes = Arc::new(Aes128State::new(true));
         Self {
             mini_client,
             host_area,
             client_area,
             is_screen_share,
-            camera: CameraEncoder::new(aes.clone()),
-            microphone: MicrophoneEncoder::new(aes.clone()),
+            camera: CameraEncoder::new(),
+            microphone: MicrophoneEncoder::new(),
         }
     }
 
@@ -356,21 +353,10 @@ impl Component for Client {
                 }
 
                 let ms = self.mini_client.clone();
-                let on_frame = move |chunk: web_sys::EncodedVideoChunk| {
-                    let duration = chunk.duration().expect("no duration video chunk");
-                    let mut buffer: [u8; 100000] = [0; 100000];
-                    let byte_length = chunk.byte_length() as usize;
-                    chunk.copy_to_with_u8_array(&mut buffer);
-                    let data = buffer[0..byte_length].to_vec();
-                    let chunk_type = EncodedVideoChunkTypeWrapper(chunk.type_()).to_string();
-                    let timestamp = chunk.timestamp();
-                    // let data = aes.encrypt(&data).unwrap();
-                    
+                let on_frame = move |packet: VideoPacket| {
+                                       
                     let message = ClientMessage::ClientVideo { 
-                        message: data,
-                        chunk_type,
-                        timestamp,
-                        duration
+                        message: packet
                     };
                     match serde_json::to_string(&message) {
                         Ok(message) => {
@@ -430,7 +416,6 @@ impl Component for Client {
                     };                    
                 };
                 self.microphone.start(
-                    "email".to_owned(),
                     on_audio
                 );
                 false

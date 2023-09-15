@@ -1,5 +1,4 @@
 use wasm_bindgen::JsCast;
-use wasm_peers::UserId;
 use web_sys::{Element, HtmlInputElement, HtmlTextAreaElement, UrlSearchParams, Window, HtmlElement};
 use yew::NodeRef;
 

@@ -1,5 +1,7 @@
 use serde::{Serialize, Deserialize};
 
+use crate::models::packet::VideoPacket;
+
 #[derive(Serialize, Deserialize)]
 pub enum Message {
     Init {
@@ -12,10 +14,7 @@ pub enum Message {
         message: String
     },
     HostVideo {
-        message: Vec<u8>,
-        chunk_type: String,
-        timestamp: f64,
-        duration: f64,
+        message: VideoPacket
     },
     HostScreenShare {
         message: Vec<u8>,
@@ -40,10 +39,7 @@ pub enum ClientMessage {
     },
 
     ClientVideo {
-        message: Vec<u8>,
-        chunk_type: String,
-        timestamp: f64,
-        duration: f64,
+        message: VideoPacket
     },
     ClientAudio {
         message: Vec<u8>,

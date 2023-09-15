@@ -51,7 +51,7 @@ impl Component for Table {
                 location.set_search(&search).unwrap();
                 generated_session_id
             },
-            |s| {SessionId::from_str(&s).unwrap()},
+            |s| {SessionId::new(uuid::Uuid::from_str(&s).unwrap().as_u128())},
         );
 
         let is_ready = Rc::new(RefCell::new(false));
@@ -118,7 +118,7 @@ impl Component for Table {
                 log::info!("update");
                 log::info!("{}", cell.id);
                 let message = serde_json::to_string::<Cell>(&cell).unwrap();
-                self.network_manager.send_message_to_all(&message);
+                let _ = self.network_manager.send_message_to_all(&message);
                 true
             },
         }

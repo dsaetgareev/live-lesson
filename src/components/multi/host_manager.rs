@@ -1,11 +1,10 @@
-use std::{collections::HashMap, cell::RefCell, rc::Rc};
+use std::{collections::HashMap, cell::RefCell, rc::Rc, sync::Arc};
 
-use js_sys::Uint8Array;
 use wasm_bindgen::prelude::Closure;
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
-use web_sys::{EncodedVideoChunk, EncodedVideoChunkInit, VideoDecoder, EncodedAudioChunkInit, EncodedAudioChunk};
+use web_sys::{ EncodedAudioChunkInit, EncodedAudioChunk };
 
-use crate::{utils, utils::{inputs::{Message, ClientMessage}, dom::create_video_id, device::{create_video_decoder_frame, create_audio_decoder}}, wrappers::{EncodedVideoChunkTypeWrapper, EncodedAudioChunkTypeWrapper}};
+use crate::{utils, utils::{inputs::{Message, ClientMessage}, dom::create_video_id, device::{create_video_decoder_frame, create_audio_decoder}}, models::video::Video, wrappers::EncodedAudioChunkTypeWrapper};
 
 
 const TEXTAREA_ID: &str = "document-textarea";
@@ -14,7 +13,7 @@ const TEXTAREA_ID_CLIENT: &str = "client-textarea";
 
 pub struct HostManager {
     pub players: Rc<RefCell<HashMap<UserId, String>>>,
-    pub decoders: Rc<RefCell<HashMap<UserId, Rc<RefCell<VideoDecoder>>>>>,
+    pub decoders: Rc<RefCell<HashMap<UserId, Rc<RefCell<Video>>>>>,
     pub mini_server: MiniServer,
 }
 
@@ -35,12 +34,16 @@ impl HostManager {
          }
     }
 
-    pub fn init(&mut self) {
-               
+    pub fn init(
+        &mut self,
+        on_tick: impl Fn() + 'static,
+    ) {
+        let on_tick  = Rc::new(RefCell::new(on_tick));
         let on_open_callback = {
             let mini_server = self.mini_server.clone();
             let players = self.players.clone();
             let decoders = self.decoders.clone();
+            let on_tick = on_tick.clone();
             move |user_id| {
                 let text_area = match utils::dom::get_text_area(TEXTAREA_ID) {
                     Ok(text_area) => text_area,
@@ -63,9 +66,11 @@ impl HostManager {
                         .send_message(user_id, &message)
                         .expect("failed to send current input to new connection");
                 }
-                players.borrow_mut().insert(user_id, String::default());
+                players.as_ref().borrow_mut().insert(user_id, String::default());
                 let video_id = create_video_id(user_id.into_inner().to_string());
-                decoders.borrow_mut().insert(user_id, Rc::new(RefCell::new(create_video_decoder_frame(video_id))));
+                on_tick.borrow()();
+                decoders.as_ref().borrow_mut().insert(user_id, Rc::new(RefCell::new(create_video_decoder_frame(video_id))));
+                on_tick.borrow()();
             }
         };
 
@@ -91,45 +96,14 @@ impl HostManager {
                                     text_area.set_value(&message);
                                 }
                                 
-                                players.borrow_mut().insert(user_id, message);
+                                players.as_ref().borrow_mut().insert(user_id, message);
                             },
                             ClientMessage::ClientVideo { 
                                 message,
-                                chunk_type,
-                                timestamp ,
-                                duration,
                             } => {
-                                let chunk_type = EncodedVideoChunkTypeWrapper::from(chunk_type.as_str()).0;
-                                let video_data = Uint8Array::new_with_length(message.len().try_into().unwrap());
-                                video_data.copy_from(&message);
-                                let video_chunk = EncodedVideoChunkInit::new(&video_data, timestamp, chunk_type);
-                                // video_chunk.duration(image.duration);
-                                let chunk = EncodedVideoChunk::new(&video_chunk).unwrap();
-                                
-
-                                let mut video_vector = vec![0u8; chunk.byte_length() as usize];
-                                let video_message = video_vector.as_mut();
-                                chunk.copy_to_with_u8_array(video_message);
-                                let data = Uint8Array::from(video_message.as_ref());
-                                let mut encoded_chunk_init = EncodedVideoChunkInit::new(&data, chunk.timestamp(), chunk.type_());
-                                encoded_chunk_init.duration(duration);
-                                let encoded_video_chunk = EncodedVideoChunk::new(
-                                    &encoded_chunk_init
-                                ).unwrap();
-                                let video_decoder = decoders.borrow().get(&user_id).unwrap().clone();
-                                let video_decoder = video_decoder.borrow();
-                                match video_decoder.state() {
-                                    web_sys::CodecState::Unconfigured => {
-                                        log::info!("video decoder unconfigured");
-                                    },
-                                    web_sys::CodecState::Configured => {
-                                        video_decoder.decode(&encoded_video_chunk);
-                                    },
-                                    web_sys::CodecState::Closed => {
-                                        log::info!("video decoder closed");
-                                    },
-                                    _ => {},
-                                }
+                                let video = decoders.as_ref().borrow().get(&user_id).unwrap().clone();
+                                let mut video = video.as_ref().borrow_mut();
+                                let _ = video.decode_break(Arc::new(message));
                             },
                             ClientMessage::ClientAudio { 
                                 message,

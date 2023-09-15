@@ -4,17 +4,18 @@ use js_sys::{JsString, Reflect, Array};
 use log::error;
 use wasm_bindgen::{JsValue, prelude::Closure, JsCast};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{VideoDecoder, HtmlImageElement, HtmlCanvasElement, CanvasRenderingContext2d, VideoFrame, VideoDecoderInit, VideoDecoderConfig, AudioDecoder, MediaStreamTrackGenerator, MediaStreamTrackGeneratorInit, AudioData, AudioDecoderInit, AudioDecoderConfig, HtmlVideoElement, MediaStream, AudioContext};
+use web_sys::{VideoDecoder, HtmlImageElement, HtmlCanvasElement, CanvasRenderingContext2d, VideoFrame, VideoDecoderInit, VideoDecoderConfig, AudioDecoder, MediaStreamTrackGenerator, MediaStreamTrackGeneratorInit, AudioData, AudioDecoderInit, AudioDecoderConfig, HtmlVideoElement, MediaStream};
 
-use crate::constants::{VIDEO_CODEC, AUDIO_CHANNELS, AUDIO_CODEC, AUDIO_SAMPLE_RATE};
+use crate::{constants::{VIDEO_CODEC, AUDIO_CHANNELS, AUDIO_CODEC, AUDIO_SAMPLE_RATE}, models::{video::Video, audio::Audio}};
 
-use super::{dom::get_window, config::configure_audio_context, models::{Audio, Video}};
+use super::{dom::get_window, config::configure_audio_context};
 
 pub fn create_video_decoder(render_id: String) -> Video {
     let error_video = Closure::wrap(Box::new(move |e: JsValue| {
         error!("{:?}", e);
     }) as Box<dyn FnMut(JsValue)>);
 
+    let ren_id  = render_id.clone();
     let output = Closure::wrap(Box::new(move |original_chunk: JsValue| {
         let chunk = Box::new(original_chunk);
         let video_chunk = chunk.clone().unchecked_into::<HtmlImageElement>();
@@ -60,15 +61,17 @@ pub fn create_video_decoder(render_id: String) -> Video {
     output.forget();
     let video_config = VideoDecoderConfig::new(&VIDEO_CODEC);
     local_video_decoder.configure(&video_config);
-    Video::new(local_video_decoder, video_config)
+    Video::new(local_video_decoder, video_config, ren_id)
 }
 
 
-pub fn create_video_decoder_frame(render_id: String) -> VideoDecoder {
+pub fn create_video_decoder_frame(render_id: String) -> Video {
+    let r_id = render_id.clone();
     let error_video = Closure::wrap(Box::new(move |e: JsValue| {
+        error!("errorrrrrr {}", r_id.clone());
         error!("{:?}", e);
     }) as Box<dyn FnMut(JsValue)>);
-
+    let ren_id = render_id.clone();
     let frame_count = Rc::new(RefCell::new(0));
     let output = Closure::wrap(Box::new(move |original_chunk: JsValue| {
         *frame_count.borrow_mut() += 1;
@@ -118,8 +121,9 @@ pub fn create_video_decoder_frame(render_id: String) -> VideoDecoder {
     ).unwrap();
     error_video.forget();
     output.forget();
-    local_video_decoder.configure(&VideoDecoderConfig::new(&VIDEO_CODEC));
-    local_video_decoder
+    let video_config = VideoDecoderConfig::new(&VIDEO_CODEC);
+    local_video_decoder.configure(&video_config);
+    Video::new(local_video_decoder, video_config, ren_id)
 }
 
 pub fn create_video_decoder_video(video_elem_id: String) -> VideoDecoder {

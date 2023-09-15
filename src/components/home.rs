@@ -75,7 +75,7 @@ impl Component for Home {
         let start_as_host_table_document = {
             let mut session_id = self.input.clone();
             if self.input.is_empty() {
-                session_id = get_random_session_id().to_string();
+                session_id = uuid::Uuid::from_u128(get_random_session_id().inner()).to_string();
             }
             let history = history.clone();
             Callback::once(move |_| {

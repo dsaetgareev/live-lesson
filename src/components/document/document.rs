@@ -114,7 +114,7 @@ impl Component for Document {
         match msg {
             Self::Message::UpdateValue => match utils::dom::get_text_area(TEXTAREA_ID) {
                 Ok(text_area) => {
-                    self.network_manager.send_message_to_all(&text_area.value());
+                    let _ = self.network_manager.send_message_to_all(&text_area.value());
                     true
                 }
                 Err(err) => {

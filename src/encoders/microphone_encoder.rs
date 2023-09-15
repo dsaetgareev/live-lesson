@@ -4,7 +4,7 @@ use js_sys::JsString;
 use js_sys::Reflect;
 use log::error;
 use web_sys::EncodedAudioChunk;
-use std::sync::{atomic::Ordering, Arc};
+use std::sync::atomic::Ordering;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
@@ -27,18 +27,15 @@ use crate::constants::AUDIO_BITRATE;
 use crate::constants::AUDIO_CHANNELS;
 use crate::constants::AUDIO_CODEC;
 use crate::constants::AUDIO_SAMPLE_RATE;
-use crate::crypto::aes::Aes128State;
 use crate::utils::dom::get_window;
 
 pub struct MicrophoneEncoder {
-    aes: Arc<Aes128State>,
     state: EncoderState,
 }
 
 impl MicrophoneEncoder {
-    pub fn new(aes: Arc<Aes128State>) -> Self {
+    pub fn new() -> Self {
         Self {
-            aes,
             state: EncoderState::new(),
         }
     }
@@ -56,7 +53,6 @@ impl MicrophoneEncoder {
 
     pub fn start(
         &mut self,
-        userid: String, 
         on_audio: impl Fn(EncodedAudioChunk) + 'static
     ) {
         let device_id = if let Some(mic) = &self.state.selected {
@@ -64,9 +60,7 @@ impl MicrophoneEncoder {
         } else {
             return;
         };
-        let aes = self.aes.clone();
         let audio_output_handler = {
-            let email = userid;
             let on_audio = on_audio;
             Box::new(move |chunk: JsValue| {
                 let chunk = EncodedAudioChunk::from(chunk);
