@@ -17,7 +17,7 @@ use crate::utils::device::{create_video_decoder, create_audio_decoder, create_vi
 use crate::utils::inputs::Message;
 use crate::utils::inputs::ClientMessage;
 use crate::utils;
-use crate::wrappers::{EncodedAudioChunkTypeWrapper};
+use crate::wrappers::EncodedAudioChunkTypeWrapper;
 use crate::media_devices::device_selector::DeviceSelector;
 
 
@@ -38,7 +38,6 @@ pub struct Client {
     mini_client: MiniClient,
     host_area: NodeRef,
     client_area: NodeRef,
-    is_screen_share: Rc<RefCell<bool>>,
     camera: CameraEncoder,
     microphone: MicrophoneEncoder,
 }
@@ -111,7 +110,6 @@ impl Component for Client {
             }
         };
 
-        let is_screen_share = Rc::new(RefCell::new(false));
         let video = create_video_decoder("render".to_owned());
         let screen_share_decoder = create_video_decoder_frame("screen_share".to_owned());
         let audio = create_audio_decoder();
@@ -277,7 +275,6 @@ impl Component for Client {
             mini_client,
             host_area,
             client_area,
-            is_screen_share,
             camera: CameraEncoder::new(),
             microphone: MicrophoneEncoder::new(),
         }
