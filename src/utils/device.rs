@@ -126,19 +126,26 @@ pub fn create_video_decoder_frame(render_id: String) -> Video {
     Video::new(local_video_decoder, video_config, ren_id)
 }
 
-pub fn create_video_decoder_video(video_elem_id: String) -> VideoDecoder {
+pub fn create_video_decoder_video(video_elem_id: String) -> Video{
+    
+    let r_id = video_elem_id.clone();
     let error_video = Closure::wrap(Box::new(move |e: JsValue| {
         error!("{:?}", e);
     }) as Box<dyn FnMut(JsValue)>);
-
-    
-        
 
     let video_stream_generator =
         MediaStreamTrackGenerator::new(&MediaStreamTrackGeneratorInit::new("video")).unwrap();
     let js_tracks = Array::new();
     js_tracks.push(&video_stream_generator);
     let media_stream = MediaStream::new_with_tracks(&js_tracks).unwrap();
+
+    let video_element: HtmlVideoElement = get_window().unwrap()
+        .document()
+        .unwrap()
+        .get_element_by_id(&video_elem_id)
+        .unwrap()
+        .unchecked_into::<HtmlVideoElement>();
+
 
     let output = Closure::wrap(Box::new(move |original_chunk: JsValue| {
         let chunk = Box::new(original_chunk);
@@ -152,15 +159,9 @@ pub fn create_video_decoder_video(video_elem_id: String) -> VideoDecoder {
             .as_f64()
             .unwrap();
 
-        let video_element: HtmlVideoElement = get_window().unwrap()
-            .document()
-            .unwrap()
-            .get_element_by_id(&video_elem_id)
-            .unwrap()
-            .unchecked_into::<HtmlVideoElement>();
-      
-        video_element.set_width(width as u32);
-        video_element.set_height(height as u32);
+              
+        // &video_element.set_width(width as u32);
+        // &video_element.set_height(height as u32);
         let writable = video_stream_generator.writable();
         if writable.locked() {
             return;
@@ -182,19 +183,20 @@ pub fn create_video_decoder_video(video_elem_id: String) -> VideoDecoder {
        
         // media_stream.add_track(&video_stream_generator);
 
-        video_element.set_src_object(Some(&media_stream));
         
     }) as Box<dyn FnMut(JsValue)>);
 
     
+    video_element.set_src_object(Some(&media_stream));
 
     let local_video_decoder = VideoDecoder::new(
         &VideoDecoderInit::new(error_video.as_ref().unchecked_ref(), output.as_ref().unchecked_ref())
     ).unwrap();
     error_video.forget();
     output.forget();
-    local_video_decoder.configure(&VideoDecoderConfig::new(&VIDEO_CODEC));
-    local_video_decoder
+    let video_config = VideoDecoderConfig::new(&VIDEO_CODEC); 
+    local_video_decoder.configure(&video_config);
+    Video::new(local_video_decoder, video_config, r_id)
 }
 
 pub fn create_audio_decoder() -> Audio {

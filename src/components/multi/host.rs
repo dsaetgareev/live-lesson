@@ -17,7 +17,7 @@ use crate::utils::inputs::Message;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
 use crate::encoders::screen_encoder::ScreenEncoder;
 use crate::utils::{self, dom::get_window};
-use crate::wrappers::{EncodedAudioChunkTypeWrapper};
+use crate::wrappers::EncodedAudioChunkTypeWrapper;
 
 const TEXTAREA_ID: &str = "document-textarea";
 const TEXTAREA_ID_CLIENT: &str = "client-textarea";
@@ -123,11 +123,11 @@ impl Component for Host {
                 }
             },
             Self::Message::Tick => {
-                if let Err(error) = get_window().unwrap().request_animation_frame(
-                    self.tick_callback.as_ref().unchecked_ref(),
-                ) {
-                    error!("Failed requesting next animation frame: {error:?}");
-                }
+                // if let Err(error) = get_window().unwrap().request_animation_frame(
+                //     self.tick_callback.as_ref().unchecked_ref(),
+                // ) {
+                //     error!("Failed requesting next animation frame: {error:?}");
+                // }
                 true
             },
             Self::Message::ChooseItem(client_id) => {
@@ -352,12 +352,12 @@ impl Component for Host {
                         <div class="col-sm">
                             <div client_id={ client_id.clone() } class="col" onclick={ item_click.clone() }>
                                 <textarea id={ key } client_id={ client_id.clone() } value={ value } class="doc-item" cols="100" rows="30" />
-                                // <video id={ video_id } client_id={ client_id } autoplay=true ></video>
+                                <video id={ video_id } client_id={ client_id.clone() } autoplay=true class="item-canvas"></video>
                                 <div class="col">
                                     <button onclick={ on_switch_video } client_id={ client_id.clone() } >{"video ->"}</button>
                                     <button onclick={ on_switch_speakers } client_id={ client_id.clone() }>{"audio ->"}</button>
                                 </div>
-                                <canvas id={ video_id } client_id={ client_id } class="item-canvas" ></canvas>
+                                // <canvas id={ video_id } client_id={ client_id } class="item-canvas" ></canvas>
                             </div>
                             
                         </div>
