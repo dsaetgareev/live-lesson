@@ -1,6 +1,5 @@
 use yew::{html, Component, Context, Html};
-use yew_router::router::BrowserRouter;
-use yew_router::{Routable, Switch};
+use yew_router::prelude::*;
 
 use crate::components::document::document::Document;
 use crate::components::home::Home;
@@ -37,14 +36,14 @@ impl Component for App {
         html! {
             <BrowserRouter>
                 <main>
-                    <Switch<Route> render={Switch::render(switch)} />
+                    <Switch<Route> render={switch} />
                 </main>
             </BrowserRouter>
         }
     }
 }
 
-fn switch(routes: &Route) -> Html {
+fn switch(routes: Route) -> Html {
     #[allow(clippy::let_unit_value)] // html! macro messes something up
     match routes.clone() {
         Route::Home => {

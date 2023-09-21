@@ -60,14 +60,14 @@ impl Component for Home {
         if self.input.is_empty() {
             session_id = uuid::Uuid::from_u128(get_random_session_id().inner()).to_string();
         }
-        let history = ctx.link().history().unwrap();
+        let navigator = ctx.link().navigator().unwrap();
         let start_as_host_text_document = {
-            let history = history.clone();
-            Callback::once(move |_| {
-                history
+            let navigator = navigator.clone();
+            Callback::from(move |_| {
+                navigator
                     .push_with_query(
-                        Route::Document,
-                        Query::new(session_id),
+                        &Route::Document,
+                        &Query::new(session_id.clone()),
                     )
                     .unwrap();
             })
@@ -77,12 +77,12 @@ impl Component for Home {
             if self.input.is_empty() {
                 session_id = uuid::Uuid::from_u128(get_random_session_id().inner()).to_string();
             }
-            let history = history.clone();
-            Callback::once(move |_| {
-                history
+            let navigator = navigator.clone();
+            Callback::from(move |_| {
+                navigator
                     .push_with_query(
-                        Route::Table,
-                        Query::new(session_id),
+                        &Route::Table,
+                        &Query::new(session_id.clone()),
                     )
                     .unwrap();
             })
@@ -92,12 +92,12 @@ impl Component for Home {
             if self.input.is_empty() {
                 session_id = uuid::Uuid::from_u128(get_random_session_id().inner()).to_string();
             }
-            let history = history.clone();
-            Callback::once(move |_| {
-                history
+            let navigator = navigator.clone();
+            Callback::from(move |_| {
+                navigator
                     .push_with_query(
-                        Route::Multi,
-                        GameQuery::new(session_id, true),
+                        &Route::Multi,
+                        &GameQuery::new(session_id.clone(), true),
                     )
                     .unwrap();
             })

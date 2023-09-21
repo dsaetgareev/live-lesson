@@ -3,7 +3,7 @@ use std::{collections::HashMap, cell::RefCell, rc::Rc, sync::Arc};
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
 use web_sys::{ EncodedAudioChunkInit, EncodedAudioChunk };
 
-use crate::{utils, utils::{inputs::{Message, ClientMessage}, dom::create_video_id, device::{create_video_decoder_frame, create_audio_decoder, create_video_decoder_video}}, models::video::Video, wrappers::EncodedAudioChunkTypeWrapper};
+use crate::{utils, utils::{inputs::{Message, ClientMessage}, dom::create_video_id, device::{create_video_decoder_frame, create_audio_decoder, create_video_decoder_video}}, models::{video::Video, client::ClientProps, host::HostPorps}, wrappers::EncodedAudioChunkTypeWrapper};
 
 
 const TEXTAREA_ID: &str = "document-textarea";
@@ -36,6 +36,8 @@ impl HostManager {
     pub fn init(
         &mut self,
         on_tick: impl Fn() + 'static,
+        host_props: Rc<RefCell<HostPorps>>,
+        client_props: Rc<RefCell<ClientProps>>,
     ) {
         let on_tick  = Rc::new(RefCell::new(on_tick));
         let on_open_callback = {
@@ -44,19 +46,8 @@ impl HostManager {
             let decoders = self.decoders.clone();
             let on_tick = on_tick.clone();
             move |user_id| {
-                let text_area = match utils::dom::get_text_area(TEXTAREA_ID) {
-                    Ok(text_area) => text_area,
-                    Err(err) => {
-                        log::error!("failed to get textarea: {:#?}", err);
-                        return;
-                    }
-                };
-                text_area.set_disabled(false);
-                    text_area.set_placeholder(
-                        "This is a live document shared with other users.\nWhat you write will be \
-                         visible to everyone.",
-                    );
-                let value = text_area.value();
+               
+                let value = &host_props.borrow().host_content;
                 log::info!("message from value {}", value.clone());
                 let message = Message::Init { message: value.clone() };
                 let message = serde_json::to_string(&message).unwrap();
@@ -68,7 +59,7 @@ impl HostManager {
                 players.as_ref().borrow_mut().insert(user_id, String::default());
                 let video_id = create_video_id(user_id.into_inner().to_string());
                 on_tick.borrow()();
-                decoders.as_ref().borrow_mut().insert(user_id, Rc::new(RefCell::new(create_video_decoder_video(video_id))));
+                decoders.as_ref().borrow_mut().insert(user_id, Rc::new(RefCell::new(create_video_decoder_frame(video_id))));
                 on_tick.borrow()();
             }
         };
@@ -83,19 +74,13 @@ impl HostManager {
                     Ok(input) => {
                         match input {
                             ClientMessage::ClientText { message } => {
-                                let text_area = match utils::dom::get_text_area(TEXTAREA_ID_CLIENT) {
-                                    Ok(text_area) => text_area,
-                                    Err(err) => {
-                                        log::error!("failed to get textarea: {:#?}", err);
-                                        return;
-                                    }
-                                };
-                                let client_id = text_area.get_attribute("client_id").unwrap();
-                                if client_id == user_id.to_string() {
-                                    text_area.set_value(&message);
+                                if client_props.borrow().client_id == user_id.to_string() {
+                                    client_props.borrow_mut().client_content = message.clone();
+                                    client_props.borrow_mut().is_write = true;
                                 }
                                 
                                 players.as_ref().borrow_mut().insert(user_id, message);
+                                on_tick.borrow()();
                             },
                             ClientMessage::ClientVideo { 
                                 message,
