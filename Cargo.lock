@@ -566,6 +566,7 @@ dependencies = [
  "web-sys",
  "yew",
  "yew-router",
+ "yew_icons",
 ]
 
 [[package]]
@@ -1216,4 +1217,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.101",
+]
+
+[[package]]
+name = "yew_icons"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2f01768685c7bba96996a1ba91902653a37b2bfd6e937c73cfd132201693d4b"
+dependencies = [
+ "yew",
 ]

@@ -150,15 +150,6 @@ pub fn create_video_decoder_video(video_elem_id: String) -> Video{
     let output = Closure::wrap(Box::new(move |original_chunk: JsValue| {
         let chunk = Box::new(original_chunk);
         let video_chunk = chunk.clone().unchecked_into::<HtmlVideoElement>();
-        let width = Reflect::get(&chunk.clone(), &JsString::from("codedWidth"))
-            .unwrap()
-            .as_f64()
-            .unwrap();
-        let height = Reflect::get(&chunk.clone(), &JsString::from("codedHeight"))
-            .unwrap()
-            .as_f64()
-            .unwrap();
-
               
         // &video_element.set_width(width as u32);
         // &video_element.set_height(height as u32);

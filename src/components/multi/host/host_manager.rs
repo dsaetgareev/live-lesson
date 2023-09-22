@@ -6,10 +6,6 @@ use web_sys::{ EncodedAudioChunkInit, EncodedAudioChunk };
 use crate::{utils, utils::{inputs::{Message, ClientMessage}, dom::create_video_id, device::{create_video_decoder_frame, create_audio_decoder, create_video_decoder_video}}, models::{video::Video, client::ClientProps, host::HostPorps}, wrappers::EncodedAudioChunkTypeWrapper};
 
 
-const TEXTAREA_ID: &str = "document-textarea";
-const TEXTAREA_ID_CLIENT: &str = "client-textarea";
-
-
 pub struct HostManager {
     pub players: Rc<RefCell<HashMap<UserId, String>>>,
     pub decoders: Rc<RefCell<HashMap<UserId, Rc<RefCell<Video>>>>>,
@@ -47,7 +43,7 @@ impl HostManager {
             let on_tick = on_tick.clone();
             move |user_id| {
                
-                let value = &host_props.borrow().host_content;
+                let value = &host_props.borrow().host_editor_content;
                 log::info!("message from value {}", value.clone());
                 let message = Message::Init { message: value.clone() };
                 let message = serde_json::to_string(&message).unwrap();

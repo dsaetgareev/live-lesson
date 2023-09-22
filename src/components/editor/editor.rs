@@ -58,8 +58,7 @@ pub fn editor_wrapper(props: &EditorWrapperProps) -> Html {
     // let text_model = props.text_model.clone();
     if props.is_write {
         text_model.set_value(&props.text_model.get_value());
-    }    
-    log::error!("text_model {}", text_model.get_value());
+    }
 
     let on_cb = &props.on_cb;
 

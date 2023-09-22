@@ -5,8 +5,8 @@ use wasm_peers::{get_random_session_id, SessionId};
 use yew::{Component, Context, html, Html};
 use log::error;
 
-use crate::components::multi::client::Client;
-use crate::components::multi::host::Host;
+use crate::components::multi::client::client::Client;
+use crate::components::multi::host::host::Host;
 use crate::utils::dom::global_window;
 use crate::utils;
 

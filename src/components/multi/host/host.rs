@@ -1,33 +1,31 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::str::FromStr;
 
 use gloo_timers::callback::Timeout;
-use monaco::api::TextModel;
-use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
+use wasm_peers::one_to_many::MiniServer;
 use wasm_peers::{get_random_session_id, ConnectionType, SessionId, UserId};
-use web_sys::{HtmlElement, MouseEvent};
 use yew::prelude::*;
 use log::error;
 
-use crate::components::editor::editor::EditorWrapper;
-use crate::components::multi::client_items::ClientItems;
+use crate::components::multi::host::client_area::ClientArea;
+use crate::components::multi::host::client_items::ClientItems;
+use crate::components::multi::host::host_area::HostArea;
 use crate::encoders::camera_encoder::CameraEncoder;
 use crate::media_devices::device_selector::DeviceSelector;
-use crate::components::multi::host_manager::HostManager;
+use crate::components::multi::host::host_manager::HostManager;
 use crate::models::client::ClientProps;
+use crate::models::commons::AreaKind;
 use crate::models::host::HostPorps;
 use crate::models::packet::VideoPacket;
-use crate::utils::dom::create_video_id;
 use crate::utils::inputs::Message;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
 use crate::encoders::screen_encoder::ScreenEncoder;
 use crate::utils::{self, dom::get_window};
 use crate::wrappers::EncodedAudioChunkTypeWrapper;
 
-const TEXTAREA_ID: &str = "document-textarea";
-const TEXTAREA_ID_CLIENT: &str = "client-textarea";
 const VIDEO_ELEMENT_ID: &str = "webcam";
 
 pub enum Msg {
@@ -48,7 +46,7 @@ pub enum Msg {
 
 pub struct Host {
     session_id: SessionId,
-    host_manager: Option<HostManager>,
+    host_manager: Option<Rc<RefCell<HostManager>>>,
     tick_callback: Closure<dyn FnMut()>,
     host_props: Rc<RefCell<HostPorps>>,
     client_props: Rc<RefCell<ClientProps>>,
@@ -56,6 +54,63 @@ pub struct Host {
     microphone: MicrophoneEncoder,
     pub screen: ScreenEncoder,
     
+}
+
+impl Host {
+    fn send_message_to_all(&mut self, message: &str) {
+        self.host_manager
+            .as_ref()
+            .unwrap()
+            .as_ref()
+            .borrow()
+            .mini_server
+            .send_message_to_all(message)
+            .expect("not send message")
+    }
+
+    fn send_message(&mut self, user_id: UserId, message: &str) {
+        let _ = self.host_manager
+            .as_ref()
+            .expect("cannot get host manager")
+            .borrow()
+            .mini_server
+            .send_message(user_id, message)
+            .expect("not send message");
+    }
+
+    fn get_mini_server(&self) -> MiniServer {
+        self.host_manager
+            .as_ref()
+            .expect("cannot get host manager")
+            .borrow()
+            .mini_server
+            .clone()
+    }
+
+    fn get_players(&self) -> Rc<RefCell<HashMap<UserId, String>>> {
+        self.host_manager
+            .as_ref()
+            .expect("cannot get host manager")
+            .borrow()
+            .players
+            .clone()
+    }
+
+    fn send_message_cb(&self) -> Callback<(UserId, String)> {
+        let ms = self.get_mini_server();
+        let send_message = Callback::from(move |(user_id, message ): (UserId, String)| {
+            ms.send_message(user_id, &message).expect("cannot send message");
+        });
+        send_message
+    }
+
+    fn send_message_all_cb(&self) -> Callback<String> {
+        let ms = self.get_mini_server();
+        let send_message = Callback::from(move |message: String| {
+            ms.send_message_to_all(&message).expect("cannot send message");
+        });
+        send_message
+    }
 }
 
 impl Component for Host {
@@ -106,23 +161,31 @@ impl Component for Host {
                 let on_tick = move || {
                     link.send_message(Msg::Tick)
                 };
-                self.host_manager = Some(init(
+                self.host_manager = Some(Rc::new(RefCell::new(init(
                     self.session_id.clone(),
                     on_tick,
                     self.host_props.clone(),
                     self.client_props.clone(),
-                ));
+                ))));
                 ctx.link().send_message(Msg::Tick);
                 false
             },
             Self::Message::UpdateValue(content) => {
-                self.host_props.borrow_mut().host_content = content;
+                let host_area_kind = self.host_props.borrow().host_area_kind;
+                match host_area_kind {
+                    AreaKind::Editor => {
+                        self.host_props.clone().borrow_mut().host_editor_content = content.clone();
+                    },
+                    AreaKind::TextArea => {
+                        self.host_props.clone().borrow_mut().host_area_content.set_content(content.clone());
+                    },
+                }                
 
                 let message = Message::HostToHost {
-                             message: self.host_props.borrow().host_content.clone()
+                             message: content
                 };
                 let message = serde_json::to_string(&message).unwrap();
-                let _ = self.host_manager.as_ref().unwrap().mini_server.send_message_to_all(&message).expect("not send message");
+                let _ = self.send_message_to_all(&message);
                 false            
             },
             Self::Message::Tick => {
@@ -135,15 +198,11 @@ impl Component for Host {
             },
             Self::Message::ChooseItem(client_id) => {
                 self.client_props.borrow_mut().client_id = client_id;
-                let value = self.host_manager
-                    .as_ref()
-                    .unwrap()
-                    .players
+                let value = self.get_players()
                     .borrow()
                     .get(&UserId::new(self.client_props.borrow().client_id.parse::<u64>().unwrap()))
                     .unwrap()
                     .clone();
-                log::error!("value {}", value);
                 self.client_props.borrow_mut().client_content = value;
                 self.client_props.borrow_mut().is_write = true;
                 true
@@ -154,12 +213,12 @@ impl Component for Host {
                     false
                 } else {
                     let user_id: UserId = UserId::new(self.client_props.borrow().client_id.parse::<u64>().unwrap());
-                    self.host_manager.as_ref().unwrap().players.borrow_mut().insert(user_id, content.clone()); 
+                    self.get_players().borrow_mut().insert(user_id, content.clone()); 
                     let message = Message::HostToClient {
                         message: content.clone()
                     };
                     let message = serde_json::to_string(&message).unwrap();
-                    let _ = self.host_manager.as_ref().unwrap().mini_server.send_message(user_id, &message);
+                    let _ = self.send_message(user_id, &message);
                     self.client_props.borrow_mut().is_write = false;
                     true
                 }
@@ -169,7 +228,7 @@ impl Component for Host {
                     return true;
                 }
 
-                let ms = self.host_manager.as_ref().unwrap().mini_server.clone();
+                let ms = self.get_mini_server();
                 let on_frame = move |packet: VideoPacket| {
                     let message = Message::HostVideo { 
                         message: packet
@@ -196,7 +255,7 @@ impl Component for Host {
                 self.camera.set_enabled(false);
 
                 
-                let ms = self.host_manager.as_ref().unwrap().mini_server.clone();
+                let ms = self.get_mini_server();
                 match serde_json::to_string(&Message::HostIsScreenShare { message: true }) {
                     Ok(message) => {
                         let _ = ms.send_message_to_all(&message);
@@ -216,7 +275,7 @@ impl Component for Host {
                     };                    
                 };
 
-                let ms = self.host_manager.as_ref().unwrap().mini_server.clone();
+                let ms = self.get_mini_server();
                 let link = ctx.link().clone();
                 let on_stop_share = move || {
                     link.send_message(Msg::ResumeVideo);
@@ -244,7 +303,7 @@ impl Component for Host {
                     return true;
                 }
 
-                let ms = self.host_manager.as_ref().unwrap().mini_server.clone();
+                let ms = self.get_mini_server();
                 let on_audio = move |chunk: web_sys::EncodedAudioChunk| {
                     let duration = chunk.duration().unwrap();
                     let mut buffer: [u8; 100000] = [0; 100000];
@@ -298,12 +357,12 @@ impl Component for Host {
             }
             Msg::SwitchSpeakers(client_id) => {
                 let message = serde_json::to_string(&Message::HostSwicthAudio).unwrap();
-                let _ = self.host_manager.as_ref().unwrap().mini_server.send_message(UserId::new(client_id.parse::<u64>().unwrap()), &message);
+                let _ = self.send_message(UserId::new(client_id.parse::<u64>().unwrap()), &message);
                 false
             }
             Msg::SwitchVideo(client_id) => {
                 let message = serde_json::to_string(&Message::HostSwicthVideo).unwrap();
-                let _ = self.host_manager.as_ref().unwrap().mini_server.send_message(UserId::new(client_id.parse::<u64>().unwrap()), &message);
+                let _ = self.send_message(UserId::new(client_id.parse::<u64>().unwrap()), &message);
                 false
             }
         }
@@ -319,7 +378,7 @@ impl Component for Host {
                     let on_choose_item = ctx.link().callback(|client_id: String| Msg::ChooseItem(client_id));
                     html!(
                         <ClientItems 
-                            players={ host_manager.players.clone() } 
+                            players={ host_manager.as_ref().borrow().players.clone() } 
                             on_switch_speakers={ on_switch_speakers }
                             on_switch_video={ on_switch_video }
                             on_choose_item={ on_choose_item }
@@ -337,24 +396,23 @@ impl Component for Host {
         };
 
         let render_host = || {
-            let text_model = TextModel::create(&self.host_props.borrow().host_content, Some("rust"), None).unwrap();
             let on_host_editor_cb = ctx.link().callback(|content: String| Msg::UpdateValue(content));
 
             html! {
-                <div class="col document">
-                    <EditorWrapper on_cb={ on_host_editor_cb } text_model={ text_model.clone() } is_write={ true }/>
-                </div>
+                <HostArea 
+                    host_props={ &self.host_props.clone() } 
+                    on_host_editor_cb={ on_host_editor_cb }
+                    send_message_cb={ &self.send_message_cb() }
+                    send_message_all_cb={ &self.send_message_all_cb() }
+                />
             }
         };
 
         let render_client = || {
-            let text_model_client = TextModel::create(&self.client_props.borrow().client_content, Some("rust"), None).unwrap();
             let on_client_editor_cb = ctx.link().callback(|content: String| Self::Message::SendClient(content));
         
             html! {
-                <div class="col document">
-                    <EditorWrapper on_cb={ on_client_editor_cb } text_model={ text_model_client } is_write={ self.client_props.borrow().is_write }/>
-                </div>
+                <ClientArea client_props={ &self.client_props.clone() } on_client_editor_cb={ on_client_editor_cb }/>
             }
         };
         

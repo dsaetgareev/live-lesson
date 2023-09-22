@@ -1,4 +1,7 @@
+use yew::Properties;
 
+
+#[derive(PartialEq, Properties)]
 pub struct ClientProps {
     pub client_content: String,
     pub client_id: String,

@@ -110,3 +110,8 @@ web-sys = { version = "0.3.64", features = [
     "OscillatorType",
     "AudioParam"
     ] }
+yew_icons = {version = "0.7", features = [
+    "FontAwesomeSolidCode",
+    "BootstrapFileEarmarkText",
+    "LucideArrowUpCircle"
+    ]}
