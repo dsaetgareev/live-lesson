@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Clone, Copy)]
+
+#[derive(PartialEq, Clone, Copy, Serialize, Deserialize, Debug)]
 pub enum AreaKind {
     Editor,
     TextArea

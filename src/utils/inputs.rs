@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::models::packet::VideoPacket;
+use crate::models::{packet::VideoPacket, commons::AreaKind};
 
 #[derive(Serialize, Deserialize)]
 pub enum Message {
@@ -30,6 +30,9 @@ pub enum Message {
     },
     HostSwicthAudio,
     HostSwicthVideo,
+    HostSwicthArea {
+        message: AreaKind
+    }
 }
 
 #[derive(Serialize, Deserialize)]

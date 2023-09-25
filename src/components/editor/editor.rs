@@ -1,14 +1,12 @@
 use monaco::{
     api::{CodeEditorOptions, TextModel},
-    sys::{editor::{BuiltinTheme, IStandaloneCodeEditor}, Position, IPosition},
+    sys::editor::{BuiltinTheme, IStandaloneCodeEditor},
     yew::{CodeEditor, CodeEditorLink},
 };
 use wasm_bindgen::closure::Closure;
 use yew::prelude::*;
 
 use wasm_bindgen::JsCast;
-
-const CONTENT: &str = include_str!("editor.rs");
 
 fn get_options() -> CodeEditorOptions {
     CodeEditorOptions::default()
@@ -91,7 +89,7 @@ pub fn editor_wrapper(props: &EditorWrapperProps) -> Html {
         )
     };
     html! {
-        <div class="code-wrapper">
+        <div class="code-wrapper document">
             <CustomEditor {on_editor_created} text_model={(*text_model).clone()} />
         </div>
     }

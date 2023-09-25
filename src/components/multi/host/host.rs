@@ -398,14 +398,27 @@ impl Component for Host {
         let render_host = || {
             let on_host_editor_cb = ctx.link().callback(|content: String| Msg::UpdateValue(content));
 
-            html! {
-                <HostArea 
-                    host_props={ &self.host_props.clone() } 
-                    on_host_editor_cb={ on_host_editor_cb }
-                    send_message_cb={ &self.send_message_cb() }
-                    send_message_all_cb={ &self.send_message_all_cb() }
-                />
+            match &self.host_manager {
+                Some(host_manager) => {
+                    html! {
+                        <HostArea 
+                            host_props={ &self.host_props.clone() } 
+                            on_host_editor_cb={ on_host_editor_cb }
+                            send_message_cb={ &self.send_message_cb() }
+                            send_message_all_cb={ &self.send_message_all_cb() }
+                        />
+                    }
+                },
+                None => {
+                    html!(
+                        <div>
+                            {"none host manager"}
+                        </div>
+                    )    
+                },
             }
+
+            
         };
 
         let render_client = || {

@@ -7,15 +7,15 @@ use web_sys::{InputEvent, HtmlTextAreaElement, MouseEvent};
 use yew::{Component, Properties, html, Callback};
 use yew_icons::{Icon, IconId};
 
-use crate::{models::{host::HostPorps, commons::AreaKind}, components::editor::editor::EditorWrapper, utils};
+use crate::{models::{host::HostPorps, commons::AreaKind}, components::editor::editor::EditorWrapper, utils::{self, inputs::Message}};
 
-use super::host_manager::HostManager;
 
 const TEXTAREA_ID: &str = "document-textarea";
 
 pub enum Msg {
     UpdateValue,
     Tick,
+    SwitchArea(AreaKind),
 }
 
 #[derive(PartialEq, Properties)]
@@ -46,13 +46,23 @@ impl Component for HostArea {
             },
             Msg::Tick => {
                 true
+            },
+            Msg::SwitchArea(area_kind) => {
+                let message = Message::HostSwicthArea { message: area_kind };
+                match serde_json::to_string(&message) {
+                    Ok(message) => {
+                        ctx.props().send_message_all_cb.emit(message);
+                    },
+                    Err(_) => todo!(),
+                }
+                true
             }
         }
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
 
-        let text_model = TextModel::create(&ctx.props().host_props.borrow().host_editor_content, Some("rust"), None).unwrap();
+        let text_model = TextModel::create(&ctx.props().host_props.borrow().host_editor_content, Some("java"), None).unwrap();
         let on_host_editor_cb = &ctx.props().on_host_editor_cb.clone();
 
         let render = || {
@@ -90,12 +100,12 @@ impl Component for HostArea {
             let host_props = ctx.props().host_props.clone();
             let editor_click = ctx.link().callback(move |_: MouseEvent| {
                 host_props.borrow_mut().host_area_kind = AreaKind::Editor;
-                Msg::Tick
+                Msg::SwitchArea(AreaKind::Editor)
             });
             let host_props = ctx.props().host_props.clone();
             let text_area_click = ctx.link().callback(move |_: MouseEvent| {
                 host_props.borrow_mut().host_area_kind = AreaKind::TextArea;
-                Msg::Tick
+                Msg::SwitchArea(AreaKind::TextArea)
             });
 
             html! {

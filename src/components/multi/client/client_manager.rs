@@ -194,6 +194,11 @@ impl ClientManager {
                                     video.on_video = !video.on_video;
                                     video.video_decoder.reset();
                                 }
+                            },
+                            Message::HostSwicthArea {
+                                message 
+                            } => {
+                                log::debug!("area kind {:?}", message);
                             }
                         }
                     },

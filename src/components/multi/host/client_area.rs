@@ -25,7 +25,7 @@ impl Component for ClientArea {
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
-        let text_model_client = TextModel::create(&ctx.props().client_props.borrow().client_content, Some("rust"), None).unwrap();
+        let text_model_client = TextModel::create(&ctx.props().client_props.borrow().client_content, Some("java"), None).unwrap();
         let on_client_editor_cb = &ctx.props().on_client_editor_cb;
     
         html! {
