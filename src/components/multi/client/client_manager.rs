@@ -3,7 +3,7 @@ use std::{rc::Rc, cell::RefCell, sync::Arc};
 use wasm_peers::{one_to_many::MiniClient, ConnectionType, SessionId};
 use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk};
 
-use crate::{models::{host::HostPorps, client::ClientProps}, utils::{self, inputs::Message, device::{create_video_decoder, create_video_decoder_frame, create_audio_decoder}}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper};
+use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind}, utils::{self, inputs::Message, device::{create_video_decoder, create_video_decoder_frame, create_audio_decoder, create_video_decoder_video}, dom::on_visible_el}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper};
 
 const VIDEO_ELEMENT_ID: &str = "webcam";
 
@@ -49,11 +49,15 @@ impl ClientManager {
                     );
                     *is_ready.borrow_mut() = true;
                 }
-                let value = host_props.borrow().host_area_content.content.clone();
-                log::info!("message from value {}", value.clone());
-                let message = Message::Init { message: value.clone() };
+                let editor_content = &host_props.borrow().host_editor_content;
+                let text_area_content = &host_props.borrow().host_area_content.content;
+                let message = Message::Init { 
+                    editor_content: editor_content.clone(),
+                    text_area_content: text_area_content.clone(),
+                    area_kind: host_props.borrow().host_area_kind
+                };
                 let message = serde_json::to_string(&message).unwrap();
-                if !value.is_empty() {
+                if !editor_content.is_empty() || !text_area_content.is_empty() {
                     mini_client
                         .send_message_to_host(&message)
                         .expect("failed to send current input to new connection");
@@ -62,8 +66,8 @@ impl ClientManager {
             }
         };
 
-        let video = create_video_decoder("render".to_owned());
-        let screen_share_decoder = create_video_decoder_frame("screen_share".to_owned());
+        let video = create_video_decoder_video("render".to_owned());
+        let screen_share_decoder = create_video_decoder_video("screen_share".to_owned());
         let audio = create_audio_decoder();
         let on_tick = on_tick.clone();
         let on_message_callback = {
@@ -76,18 +80,43 @@ impl ClientManager {
                 let _ = match serde_json::from_str::<Message>(&message) {
                     Ok(input) => {
                         match input {
-                            Message::HostToHost { message } => {
-                                host_props.borrow_mut().host_area_content.set_content(message);
+                            Message::HostToHost { 
+                                message,
+                                area_kind, 
+                            } => {
+                                match area_kind {
+                                    AreaKind::Editor => {
+                                        host_props.borrow_mut().set_editor_content(message);
+                                    },
+                                    AreaKind::TextArea => {
+                                        host_props.borrow_mut().host_area_content.set_content(message)
+                                    },
+                                }
+                                
                                 on_tick.borrow()();
                             },
-                            Message::HostToClient { message } => {
-                                log::error!("input {}", message);
-                                client_props.borrow_mut().client_content = message;
+                            Message::HostToClient {
+                                message,
+                                area_kind
+                            } => {
+                                match area_kind {
+                                    AreaKind::Editor => {
+                                        client_props.borrow_mut().set_editor_content(message);
+                                    },
+                                    AreaKind::TextArea => {
+                                        client_props.borrow_mut().set_text_area_content(message);
+                                    },
+                                }                                
                                 on_tick.borrow()();
                             },
-                            Message::Init { message } => {
-                                log::info!("message init {}", message);
-                                host_props.borrow_mut().host_area_content.set_content(message);
+                            Message::Init { 
+                                editor_content,
+                                text_area_content,
+                                area_kind
+                            } => {
+                                host_props.borrow_mut().host_area_content.set_content(text_area_content);
+                                host_props.borrow_mut().set_editor_content(editor_content);
+                                host_props.borrow_mut().set_host_area_kind(area_kind);
                                 on_tick.borrow()();
                             },
                             Message::HostVideo { 
@@ -121,7 +150,8 @@ impl ClientManager {
                             Message::HostIsScreenShare { 
                                 message
                             } => {
-                                on_screen_share(message);
+                                on_visible_el(message, "container", "shcreen_container");
+                                on_tick.borrow()();
                             },
                             Message::HostScreenShare { 
                                 message
@@ -181,10 +211,10 @@ impl ClientManager {
                                 }
                                 
                             },
-                            Message::HostSwicthAudio => {
+                            Message::HostSwitchAudio => {
                                 audio.on_speakers = !audio.on_speakers;
                             },
-                            Message::HostSwicthVideo => {
+                            Message::HostSwitchVideo => {
                                 video.video_start = !video.video_start;
                                 if video.video_start {
                                     video.video_decoder.configure(&video.video_config);
@@ -195,10 +225,11 @@ impl ClientManager {
                                     video.video_decoder.reset();
                                 }
                             },
-                            Message::HostSwicthArea {
+                            Message::HostSwitchArea {
                                 message 
                             } => {
-                                log::debug!("area kind {:?}", message);
+                                host_props.borrow_mut().set_host_area_kind(message);
+                                on_tick.borrow()();
                             }
                         }
                     },
@@ -212,17 +243,4 @@ impl ClientManager {
         
         self.mini_client.start(on_open_callback, on_message_callback);
     }
-}
-
-fn on_screen_share(is_share: bool) {
-    let common_container = utils::dom::get_element("container").unwrap();
-    let shcreen_container = utils::dom::get_element("shcreen_container").unwrap();
-    if is_share {
-        common_container.set_class_name("unvis");
-        shcreen_container.set_class_name("vis");
-    } else {
-        common_container.set_class_name("vis");
-        shcreen_container.set_class_name("unvis");
-    }
-   
 }

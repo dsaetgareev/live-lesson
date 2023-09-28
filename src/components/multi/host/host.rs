@@ -16,7 +16,7 @@ use crate::components::multi::host::host_area::HostArea;
 use crate::encoders::camera_encoder::CameraEncoder;
 use crate::media_devices::device_selector::DeviceSelector;
 use crate::components::multi::host::host_manager::HostManager;
-use crate::models::client::ClientProps;
+use crate::models::client::{ClientProps, ClientItem};
 use crate::models::commons::AreaKind;
 use crate::models::host::HostPorps;
 use crate::models::packet::VideoPacket;
@@ -30,10 +30,8 @@ const VIDEO_ELEMENT_ID: &str = "webcam";
 
 pub enum Msg {
     Init,
-    UpdateValue(String),
     Tick,
     ChooseItem(String),
-    SendClient(String),
     EnableVideo(bool),
     EnableMicrophone(bool),
     EnableScreenShare(bool),
@@ -87,7 +85,7 @@ impl Host {
             .clone()
     }
 
-    fn get_players(&self) -> Rc<RefCell<HashMap<UserId, String>>> {
+    fn get_players(&self) -> Rc<RefCell<HashMap<UserId, ClientItem>>> {
         self.host_manager
             .as_ref()
             .expect("cannot get host manager")
@@ -170,24 +168,6 @@ impl Component for Host {
                 ctx.link().send_message(Msg::Tick);
                 false
             },
-            Self::Message::UpdateValue(content) => {
-                let host_area_kind = self.host_props.borrow().host_area_kind;
-                match host_area_kind {
-                    AreaKind::Editor => {
-                        self.host_props.clone().borrow_mut().host_editor_content = content.clone();
-                    },
-                    AreaKind::TextArea => {
-                        self.host_props.clone().borrow_mut().host_area_content.set_content(content.clone());
-                    },
-                }                
-
-                let message = Message::HostToHost {
-                             message: content
-                };
-                let message = serde_json::to_string(&message).unwrap();
-                let _ = self.send_message_to_all(&message);
-                false            
-            },
             Self::Message::Tick => {
                 // if let Err(error) = get_window().unwrap().request_animation_frame(
                 //     self.tick_callback.as_ref().unchecked_ref(),
@@ -198,30 +178,16 @@ impl Component for Host {
             },
             Self::Message::ChooseItem(client_id) => {
                 self.client_props.borrow_mut().client_id = client_id;
-                let value = self.get_players()
+                let client_item = self.get_players()
                     .borrow()
                     .get(&UserId::new(self.client_props.borrow().client_id.parse::<u64>().unwrap()))
                     .unwrap()
                     .clone();
-                self.client_props.borrow_mut().client_content = value;
+                self.client_props.borrow_mut().set_area_kind(client_item.area_kind);
+                self.client_props.borrow_mut().set_editor_content(client_item.editor_content);
+                self.client_props.borrow_mut().set_text_area_content(client_item.text_area_content);
                 self.client_props.borrow_mut().is_write = true;
                 true
-            },
-            Self::Message::SendClient(content) => {
-                self.client_props.borrow_mut().client_content = content.clone();
-                if self.client_props.borrow().client_id.is_empty() {
-                    false
-                } else {
-                    let user_id: UserId = UserId::new(self.client_props.borrow().client_id.parse::<u64>().unwrap());
-                    self.get_players().borrow_mut().insert(user_id, content.clone()); 
-                    let message = Message::HostToClient {
-                        message: content.clone()
-                    };
-                    let message = serde_json::to_string(&message).unwrap();
-                    let _ = self.send_message(user_id, &message);
-                    self.client_props.borrow_mut().is_write = false;
-                    true
-                }
             },
             Self::Message::EnableVideo(should_enable) => {
                 if !should_enable {
@@ -356,12 +322,12 @@ impl Component for Host {
                 false
             }
             Msg::SwitchSpeakers(client_id) => {
-                let message = serde_json::to_string(&Message::HostSwicthAudio).unwrap();
+                let message = serde_json::to_string(&Message::HostSwitchAudio).unwrap();
                 let _ = self.send_message(UserId::new(client_id.parse::<u64>().unwrap()), &message);
                 false
             }
             Msg::SwitchVideo(client_id) => {
-                let message = serde_json::to_string(&Message::HostSwicthVideo).unwrap();
+                let message = serde_json::to_string(&Message::HostSwitchVideo).unwrap();
                 let _ = self.send_message(UserId::new(client_id.parse::<u64>().unwrap()), &message);
                 false
             }
@@ -396,14 +362,12 @@ impl Component for Host {
         };
 
         let render_host = || {
-            let on_host_editor_cb = ctx.link().callback(|content: String| Msg::UpdateValue(content));
 
             match &self.host_manager {
-                Some(host_manager) => {
+                Some(_host_manager) => {
                     html! {
                         <HostArea 
-                            host_props={ &self.host_props.clone() } 
-                            on_host_editor_cb={ on_host_editor_cb }
+                            host_props={ &self.host_props.clone() }
                             send_message_cb={ &self.send_message_cb() }
                             send_message_all_cb={ &self.send_message_all_cb() }
                         />
@@ -421,12 +385,32 @@ impl Component for Host {
             
         };
 
-        let render_client = || {
-            let on_client_editor_cb = ctx.link().callback(|content: String| Self::Message::SendClient(content));
-        
-            html! {
-                <ClientArea client_props={ &self.client_props.clone() } on_client_editor_cb={ on_client_editor_cb }/>
-            }
+        let render_client = || {     
+            
+            match &self.host_manager {
+                Some(_host_manager) => {
+                    let area_kind = self.client_props.as_ref().borrow().client_area_kind;
+                    let link = ctx.link().clone();
+                    let on_tick = Callback::from(move |_: String| {
+                        link.send_message(Msg::Tick);
+                    });
+                    html! {
+                        <ClientArea
+                            client_props={ &self.client_props.clone() }
+                            send_message_cb={ &self.send_message_cb() }
+                            players={ &self.get_players() }
+                            on_tick={ on_tick }
+                        />
+                    }
+                },
+                None => {
+                    html!(
+                        <div>
+                            {"none host manager"}
+                        </div>
+                    )    
+                },
+            }               
         };
         
         let mic_callback = ctx.link().callback(Msg::AudioDeviceChanged);
@@ -442,12 +426,11 @@ impl Component for Host {
                 <div class="row">
                     { render_client() }
                     { render_host() }
+                    <div>
+                        <video class="client_canvas" autoplay=true id={VIDEO_ELEMENT_ID}></video>
+                    </div>
                 </div>
-                <div class="consumer">
-                    <h3>{"Consumer!"}</h3>
-                    <video class="self-camera" autoplay=true id={VIDEO_ELEMENT_ID}></video>
-                </div>
-                
+                       
                 <DeviceSelector on_microphone_select={mic_callback} on_camera_select={cam_callback}/>
                 <div>
                     <button onclick={ screen_share_cb }>{"Демонстрация экрана"}</button>

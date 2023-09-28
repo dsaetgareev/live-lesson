@@ -4,8 +4,9 @@ use wasm_bindgen::JsCast;
 use wasm_peers::UserId;
 use web_sys::{HtmlElement, MouseEvent};
 use yew::{Component, Properties, html, Html, Callback};
+use yew_icons::{Icon, IconId};
 
-use crate::utils::dom::create_video_id;
+use crate::{utils::dom::create_video_id, models::{client::ClientItem, commons::AreaKind}};
 
 pub enum Msg {
     ChooseItem(String),
@@ -15,7 +16,7 @@ pub enum Msg {
 
 #[derive(PartialEq, Properties)]
 pub struct ClientItemsPorps {
-    pub players: Rc<RefCell<HashMap<UserId, String>>>,
+    pub players: Rc<RefCell<HashMap<UserId, ClientItem>>>,
     pub on_switch_speakers: Callback<String>,
     pub on_switch_video: Callback<String>,
     pub on_choose_item: Callback<String>,
@@ -23,7 +24,7 @@ pub struct ClientItemsPorps {
 
 
 pub struct ClientItems {
-    pub players: Rc<RefCell<HashMap<UserId, String>>>,
+    pub players: Rc<RefCell<HashMap<UserId, ClientItem>>>,
 }
 
 impl Component for ClientItems {
@@ -33,7 +34,7 @@ impl Component for ClientItems {
 
     fn create(ctx: &yew::Context<Self>) -> Self {
         let players = ctx.props().players.clone();
-        Self { players: players }
+        Self { players }
     }
 
     fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
@@ -68,6 +69,7 @@ impl Component for ClientItems {
         let render_item = |key: String, value: String| {
             let client_id = key.clone();
             let video_id = create_video_id(key.clone());
+            let client_logo_id = create_video_id(format!("{}_{}", "client-video-logo", key.clone()));
             let speakers_id = client_id.clone();
             let video_switch_id = client_id.clone();
             let on_switch_speakers = ctx.link().callback(move |_| Msg::SwitchSpeakers(speakers_id.clone()));
@@ -82,7 +84,10 @@ impl Component for ClientItems {
                                     <button onclick={ on_switch_video } client_id={ client_id.clone() } >{"video ->"}</button>
                                     <button onclick={ on_switch_speakers } client_id={ client_id.clone() }>{"audio ->"}</button>
                                 </div>
-                                <canvas id={ video_id } client_id={ client_id } class="item-canvas" ></canvas>
+                                <canvas id={ video_id } client_id={ client_id } class="item-canvas vis" ></canvas>
+                                <div id={ client_logo_id } class="unvis">
+                                    <Icon icon_id={IconId::FontAwesomeSolidHorseHead}/>
+                                </div>
                             </div>
                             
                         </div>
@@ -95,9 +100,25 @@ impl Component for ClientItems {
             self.players.borrow().clone()
             .into_keys()
             .map(|key| {
-                let value = String::from(self.players.borrow().get(&key).unwrap());
-                // log::info!("value {}", value.clone());
-                render_item(key.to_string(), value.to_string())
+                match self.players.borrow().get(&key) {
+                    Some(client_item) => {
+                        match client_item.area_kind {
+                            AreaKind::Editor => {
+                                render_item(key.to_string(), client_item.editor_content.clone())
+                            },
+                            AreaKind::TextArea => {
+                                render_item(key.to_string(), client_item.text_area_content.clone())
+                            },
+                        }
+                    },
+                    None => {
+                        html! {
+                            render_item(key.to_string(), "none user".to_string())
+                        }
+                    },
+                }
+                
+                
             }).collect::<Html>()      
         };
 

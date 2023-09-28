@@ -69,3 +69,17 @@ pub fn create_video_id(user_id: String) -> String {
     let video_id = format!("video_{}", user_id);
     video_id
 }
+
+pub fn on_visible_el(is_visible: bool, el_1: &str, el_2: &str) {
+    let el_1 = get_element(el_1).unwrap();
+    let el_2 = get_element(el_2).unwrap();
+    
+    if is_visible {
+        el_1.set_class_name(&el_1.class_name().replace("vis", "unvis"));
+        el_2.set_class_name(&el_1.class_name().replace("unvis", "vis"));
+    } else {
+        el_1.set_class_name(&el_1.class_name().replace("unvis", "vis"));
+        el_2.set_class_name(&el_1.class_name().replace("vis", "unvis"));
+    }
+   
+}

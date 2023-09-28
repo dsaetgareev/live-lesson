@@ -3,11 +3,11 @@ use std::{collections::HashMap, cell::RefCell, rc::Rc, sync::Arc};
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
 use web_sys::{ EncodedAudioChunkInit, EncodedAudioChunk };
 
-use crate::{utils, utils::{inputs::{Message, ClientMessage}, dom::create_video_id, device::{create_video_decoder_frame, create_audio_decoder, create_video_decoder_video}}, models::{video::Video, client::ClientProps, host::HostPorps}, wrappers::EncodedAudioChunkTypeWrapper};
+use crate::{utils, utils::{inputs::{Message, ClientMessage}, dom::{create_video_id, on_visible_el}, device::{create_video_decoder_frame, create_audio_decoder, create_video_decoder_video}}, models::{video::Video, client::{ClientProps, ClientItem}, host::HostPorps, commons::AreaKind}, wrappers::EncodedAudioChunkTypeWrapper};
 
 
 pub struct HostManager {
-    pub players: Rc<RefCell<HashMap<UserId, String>>>,
+    pub players: Rc<RefCell<HashMap<UserId, ClientItem>>>,
     pub decoders: Rc<RefCell<HashMap<UserId, Rc<RefCell<Video>>>>>,
     pub mini_server: MiniServer,
 }
@@ -43,18 +43,22 @@ impl HostManager {
             let on_tick = on_tick.clone();
             move |user_id| {
                
-                let value = &host_props.borrow().host_editor_content;
-                log::info!("message from value {}", value.clone());
-                let message = Message::Init { message: value.clone() };
+                let editor_content = &host_props.borrow().host_editor_content;
+                let text_area_content = &host_props.borrow().host_area_content.content;
+                let area_kind = host_props.borrow().host_area_kind;
+                let message = Message::Init { 
+                    editor_content: editor_content.clone(),
+                    text_area_content: text_area_content.clone(),
+                    area_kind: area_kind.clone(),
+                };
                 let message = serde_json::to_string(&message).unwrap();
-                if !value.is_empty() {
+                if !editor_content.is_empty() || !text_area_content.is_empty() {
                     mini_server
                         .send_message(user_id, &message)
                         .expect("failed to send current input to new connection");
                 }
-                players.as_ref().borrow_mut().insert(user_id, String::default());
+                players.as_ref().borrow_mut().insert(user_id, ClientItem::new(area_kind));
                 let video_id = create_video_id(user_id.into_inner().to_string());
-                on_tick.borrow()();
                 decoders.as_ref().borrow_mut().insert(user_id, Rc::new(RefCell::new(create_video_decoder_frame(video_id))));
                 on_tick.borrow()();
             }
@@ -64,18 +68,18 @@ impl HostManager {
             let players = self.players.clone();
             let decoders = self.decoders.clone();
             let audio = create_audio_decoder();
-            move |user_id: UserId, message: String| {
-                // let input = serde_json::from_str::<PlayerInput>(&message).unwrap();    
+            let on_tick = on_tick.clone();
+            move |user_id: UserId, message: String| { 
                 let _ = match serde_json::from_str::<ClientMessage>(&message) {
                     Ok(input) => {
                         match input {
                             ClientMessage::ClientText { message } => {
-                                if client_props.borrow().client_id == user_id.to_string() {
-                                    client_props.borrow_mut().client_content = message.clone();
-                                    client_props.borrow_mut().is_write = true;
-                                }
+                                // if client_props.borrow().client_id == user_id.to_string() {
+                                //     client_props.borrow_mut().set_editor_content(message.clone());
+                                //     client_props.borrow_mut().is_write = true;
+                                // }
                                 
-                                players.as_ref().borrow_mut().insert(user_id, message);
+                                // players.as_ref().borrow_mut().insert(user_id, message);
                                 on_tick.borrow()();
                             },
                             ClientMessage::ClientVideo { 
@@ -115,6 +119,64 @@ impl HostManager {
                                         },
                                         _ => {}
                                     }    
+                            }
+                            ClientMessage::ClientSwitchVideo { 
+                                message
+                            } => {
+                                let video_id = create_video_id(user_id.to_string());
+                                let client_logo_id = create_video_id(format!("{}_{}", "client-video-logo", user_id.to_string()));
+                                on_visible_el(message, &video_id, &client_logo_id);
+                                on_tick.borrow()();
+                            },
+                            ClientMessage::ClientToClient { 
+                                message,
+                                area_kind
+                            } => {
+                               
+                                match players.as_ref().borrow_mut().get_mut(&user_id) {
+                                    Some(client_item) => {
+                                        client_item.set_area_kind(area_kind);
+                                        match area_kind {
+                                            AreaKind::Editor => {
+                                                client_item.set_editor_content(message.clone());
+                                                if client_props.borrow().client_id == user_id.to_string() {
+                                                    client_props.borrow_mut().set_editor_content(message);
+                                                    client_props.borrow_mut().is_write = true;
+                                                }
+                                            },
+                                            AreaKind::TextArea => {
+                                                client_item.set_text_area_content(message.clone());
+                                                log::error!("text {}", client_item.text_area_content);
+                                                if client_props.borrow().client_id == user_id.to_string() {
+                                                    client_props.borrow_mut().set_text_area_content(message);
+                                                }
+                                            },
+                                        }
+                                        
+                                    },
+                                    None => {
+                                        log::error!("cannot find client item, id: {}", user_id.to_string());
+                                    },
+                                }
+                                
+                                on_tick.borrow()();
+                                                        
+                            },
+                            ClientMessage::ClientSwitchArea { 
+                                message
+                            } => {
+                                if client_props.borrow().client_id == user_id.to_string() {
+                                    client_props.borrow_mut().set_area_kind(message);
+                                }
+
+                                match players.as_ref().borrow_mut().get_mut(&user_id) {
+                                    Some(client_item) => {
+                                        client_item.set_area_kind(message)
+                                    },
+                                    None => todo!(),
+                                }
+                                
+                                on_tick.borrow()();
                             }
                         }
                     },

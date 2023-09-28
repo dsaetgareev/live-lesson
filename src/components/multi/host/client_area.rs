@@ -1,37 +1,144 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, collections::HashMap};
 
 use monaco::api::TextModel;
+use wasm_bindgen::JsCast;
+use wasm_peers::UserId;
+use web_sys::{InputEvent, HtmlTextAreaElement};
 use yew::{Component, Properties, html, Callback};
 
-use crate::{models::client::ClientProps, components::editor::editor::EditorWrapper};
+use crate::{models::{client::{ClientProps, ClientItem}, commons::AreaKind}, components::editor::editor::EditorWrapper, utils::inputs::Message};
+
+const TEXTAREA_ID_CLIENT: &str = "client-textarea";
+
+pub enum Msg {
+    SendClient(String),
+    Tick,
+}
 
 #[derive(PartialEq, Properties)]
 pub struct ClientAreaProps {
     pub client_props: Rc<RefCell<ClientProps>>,
-    pub on_client_editor_cb: Callback<String>,
+    pub players: Rc<RefCell<HashMap<UserId, ClientItem>>>,
+    pub send_message_cb: Callback<(UserId, String)>,
+    pub on_tick: Callback<String>,
 }
 
 pub struct ClientArea {
+    pub client_props: Rc<RefCell<ClientProps>>,
+    pub send_message_cb: Callback<(UserId, String)>,
+    pub players: Rc<RefCell<HashMap<UserId, ClientItem>>>,
+}
 
+impl ClientArea {
+
+    pub fn send_message(&self, message: String) {
+        let user_id: UserId = UserId::new(self.client_props.borrow().client_id.parse::<u64>().unwrap());
+        self.send_message_cb.emit((user_id, message));
+    }
 }
 
 impl Component for ClientArea {
-    type Message = ();
+    type Message = Msg;
 
     type Properties = ClientAreaProps;
 
-    fn create(_ctx: &yew::Context<Self>) -> Self {
-        Self {  }
+    fn create(ctx: &yew::Context<Self>) -> Self {
+        Self { 
+            client_props: ctx.props().client_props.clone(),
+            send_message_cb: ctx.props().send_message_cb.clone(),
+            players: ctx.props().players.clone(),
+         }
+    }
+
+    fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            Msg::SendClient(content) => {
+                if self.client_props.borrow().client_id.is_empty() {
+                    false
+                } else {
+                    let user_id: UserId = UserId::new(self.client_props.borrow().client_id.parse::<u64>().unwrap());
+                    let area_kind = self.client_props.borrow().client_area_kind;
+                    // let client_item = self.players.borrow_mut().get(&user_id);
+                    match self.players.borrow_mut().get_mut(&user_id) {
+                        Some(client_item) => {
+                            match area_kind {
+                                AreaKind::Editor => {
+                                    client_item.set_editor_content(content.clone());
+                                    self.client_props.borrow_mut().set_editor_content(content.clone());
+                                },
+                                AreaKind::TextArea => {
+                                    client_item.set_text_area_content(content.clone());
+                                    self.client_props.borrow_mut().set_text_area_content(content.clone());
+                                },
+                            }
+                        },
+                        None => {
+                            log::error!("cannot find client item, id: {}", user_id.to_string());
+                        },
+                    }
+                                        
+                    let message = Message::HostToClient {
+                        message: content,
+                        area_kind,
+                    };
+                    let message = serde_json::to_string(&message).unwrap();
+                    let _ = self.send_message(message);
+                    self.client_props.borrow_mut().is_write = false;
+                    ctx.props().on_tick.emit("value".to_string());
+                    true
+                }
+                
+            },
+            Msg::Tick => {
+                true
+            }
+        }
     }
 
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
-        let text_model_client = TextModel::create(&ctx.props().client_props.borrow().client_content, Some("java"), None).unwrap();
-        let on_client_editor_cb = &ctx.props().on_client_editor_cb;
-    
+        let text_model = TextModel::create(&ctx.props().client_props.borrow().client_editor_content, Some("java"), None).unwrap();
+        // let on_host_editor_cb = &ctx.props().on_host_editor_cb.clone();
+        let on_host_editor_cb = ctx.link().callback(|content: String| Msg::SendClient(content));
+
+        let render = || {
+            match &ctx.props().client_props.clone().borrow().client_area_kind {
+                AreaKind::Editor => {
+                    let is_write = &ctx.props().client_props.borrow().is_write;
+                    html! {
+                        <div class="col document">
+                            <EditorWrapper on_cb={ on_host_editor_cb.clone() } text_model={ text_model.clone() } is_write={ is_write }/>
+                        </div>
+                    }
+                },
+                AreaKind::TextArea => {
+                    let on_host_editor_cb = on_host_editor_cb.clone();
+                    let oninput = ctx.link().callback(move |e: InputEvent| {
+                        let content = e
+                            .target()
+                            .unwrap()
+                            .unchecked_into::<HtmlTextAreaElement>()
+                            .value();
+                        on_host_editor_cb.emit(content);
+                        Msg::Tick
+                    });
+                    let value = ctx.props().client_props.borrow().client_text_area.content.clone();
+
+                    html! {
+                        <div class="col document">
+                            <textarea id={ TEXTAREA_ID_CLIENT } value={ value } { oninput } class="document" cols="100" rows="30" />
+                        </div>
+                    }
+                },
+            }
+        };
+       
         html! {
-            <div class="col document">
-                <EditorWrapper on_cb={ on_client_editor_cb } text_model={ text_model_client } is_write={ &ctx.props().client_props.borrow().is_write }/>
-            </div>
+            <>
+                <div class="col">
+                    { render() }
+                </div>
+                
+            </>
         }
     }
 }

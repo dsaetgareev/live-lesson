@@ -5,13 +5,17 @@ use crate::models::{packet::VideoPacket, commons::AreaKind};
 #[derive(Serialize, Deserialize)]
 pub enum Message {
     Init {
-        message: String,
+        editor_content: String,
+        text_area_content: String,
+        area_kind: AreaKind
     },
     HostToHost {
-        message: String
+        message: String,
+        area_kind: AreaKind,
     },
     HostToClient {
-        message: String
+        message: String,
+        area_kind: AreaKind,
     },
     HostVideo {
         message: VideoPacket
@@ -28,9 +32,9 @@ pub enum Message {
         timestamp: f64,
         duration: f64,
     },
-    HostSwicthAudio,
-    HostSwicthVideo,
-    HostSwicthArea {
+    HostSwitchAudio,
+    HostSwitchVideo,
+    HostSwitchArea {
         message: AreaKind
     }
 }
@@ -50,4 +54,14 @@ pub enum ClientMessage {
         timestamp: f64,
         duration: f64,
     },
+    ClientSwitchVideo {
+        message: bool
+    },
+    ClientToClient {
+        message: String,
+        area_kind: AreaKind,
+    },
+    ClientSwitchArea {
+        message: AreaKind,
+    }
 }

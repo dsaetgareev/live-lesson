@@ -3,20 +3,27 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
 use gloo_timers::callback::Timeout;
+use monaco::api::TextModel;
 use wasm_bindgen::JsCast;
 use wasm_peers::one_to_many::MiniClient;
 use wasm_peers::{get_random_session_id, ConnectionType, SessionId};
 use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk, InputEvent, HtmlTextAreaElement};
-use yew::{html, Component, Context, Html, NodeRef};
+use yew::{html, Component, Context, Html, NodeRef, Callback};
 use log::error;
+use yew_icons::{Icon, IconId};
 
+use crate::components::editor::editor::EditorWrapper;
+use crate::components::multi::client::client_area::ClientArea;
+use crate::components::multi::client::host_area::HostArea;
 use crate::encoders::camera_encoder::CameraEncoder;
 use crate::crypto::aes::Aes128State;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
 use crate::models::client::ClientProps;
+use crate::models::commons::AreaKind;
 use crate::models::host::HostPorps;
 use crate::models::packet::VideoPacket;
 use crate::utils::device::{create_video_decoder, create_audio_decoder, create_video_decoder_frame};
+use crate::utils::dom::on_visible_el;
 use crate::utils::inputs::Message;
 use crate::utils::inputs::ClientMessage;
 use crate::utils;
@@ -48,6 +55,23 @@ pub struct Client {
     client_props: Rc<RefCell<ClientProps>>,
     camera: CameraEncoder,
     microphone: MicrophoneEncoder,
+}
+
+impl Client {
+    pub fn get_mini_client(&self) -> MiniClient {
+        self.client_manager
+            .as_ref()
+            .expect("cannot get client managet")
+            .mini_client
+            .clone()
+    }
+    pub fn send_message_to_host_cb(&self) -> Callback<String> {
+        let mc = self.get_mini_client();
+        let send_message = Callback::from(move |message: String| {
+            mc.send_message_to_host(&message).expect("cannot send message");
+        });
+        send_message
+    }
 }
 
 impl Component for Client {
@@ -102,7 +126,7 @@ impl Component for Client {
                 true
             }
             Msg::UpdateValue(content) => {
-                self.client_props.borrow_mut().client_content = content.clone();
+                self.client_props.borrow_mut().client_editor_content = content.clone();
                 let message = ClientMessage::ClientText { message: content };
                 let message = serde_json::to_string(&message).unwrap();
                 let _ = self.client_manager.as_mut().unwrap().mini_client.send_message_to_host(&message);
@@ -124,6 +148,12 @@ impl Component for Client {
                 let link = ctx.link().clone();
                 let on_video = self.camera.get_enabled();
                 let on_video = self.camera.set_enabled(!on_video);
+                let is_video = !self.camera.get_enabled();
+                on_visible_el(is_video, VIDEO_ELEMENT_ID, "video-logo");
+                let message = ClientMessage::ClientSwitchVideo { message: is_video };
+                let message = serde_json::to_string(&message).unwrap();
+                let _ = self.client_manager.as_mut().unwrap().mini_client.send_message_to_host(&message);
+                
                 log::info!("{}", on_video);
                 if self.camera.get_enabled() {
                     let timeout = Timeout::new(1000, move || {
@@ -131,7 +161,7 @@ impl Component for Client {
                     });
                     timeout.forget();
                 }
-                false
+                true
             }
             Msg::EnableVideo(should_enable) => {
                 if !should_enable {
@@ -218,38 +248,91 @@ impl Component for Client {
                 .value();
             Self::Message::UpdateValue(content)
         });
-        let disabled = false;
         let placeholder = "This is a live document shared with other users.\nYou will be allowed \
                            to write once other join, or your connection is established.";
 
         let mic_callback = ctx.link().callback(Msg::AudioDeviceChanged);
         let cam_callback = ctx.link().callback(Msg::VideoDeviceChanged);
         let on_video_btn = ctx.link().callback(|_| Msg::SwitchVedeo);
-        let host_value = self.host_props.borrow().host_area_content.content.clone();
-        let client_value = self.client_props.borrow().client_content.clone();
+        let client_value = self.client_props.borrow().client_editor_content.clone();
+
+        let render_host_area = || {
+            html! {
+                <HostArea 
+                    host_props={ self.host_props.clone() } 
+                    area_kind={ self.host_props.clone().borrow().host_area_kind }
+                    editor_content={ self.host_props.as_ref().borrow().host_editor_content.clone() }
+                    text_area_content={ self.host_props.clone().borrow().host_area_content.content.clone() }
+                />
+            }
+        };
+
+        let render_client_area = || {
+
+            match &self.client_manager {
+                Some(_client_manager) => {
+                    html! {
+                        <ClientArea 
+                            client_props={ &self.client_props.clone() }
+                            send_message_to_host_cb={ &self.send_message_to_host_cb() }
+                        />
+                    }
+                },
+                None => {
+                    html!(
+                        <div>
+                            {"none host manager"}
+                        </div>
+                    )    
+                },
+            }
+
+            
+        };
+
         html! {
             <main class="px-3">
-                <div id="container">
+                <div id="container" class="client-container ">
                     <div class="row">
-                        <div class="col-6">
-                            <textarea id={ TEXTAREA_ID_CLIENT } value={ client_value } class="document" cols="100" rows="30" { placeholder } { oninput }/>
+                        <div class="client_canvas col-3">
+                            <div>
+                                <button onclick={ on_video_btn }>
+                                    { 
+                                        if self.camera.get_enabled() {
+                                            html! { <Icon icon_id={IconId::BootstrapCameraVideoOffFill}/> }
+                                        } else {
+                                            html! { <Icon icon_id={IconId::BootstrapCameraVideoFill}/> }
+                                        }
+                                    }
+                                    
+                                </button>
+                            </div>
+                            <video class="client_canvas vis" autoplay=true id={VIDEO_ELEMENT_ID} poster="placeholder.png"></video>
+                            <div id="video-logo" class="unvis">
+                                <Icon icon_id={IconId::FontAwesomeSolidHorseHead}/>
+                            </div>
                         </div>
-                        <div class="col-6">
-                            <textarea id={ TEXTAREA_ID } value={ host_value } class="document" cols="100" rows="30" { disabled } { placeholder } />
+                        <div class="col-3">
+                            // <textarea id={ TEXTAREA_ID_CLIENT } value={ client_value } class="document" { placeholder } { oninput }/>
+                            { render_client_area() }
                         </div>
+                        <div class="col">
+                            { render_host_area() }
+                            
+                        </div>
+                        <div class="col">                                                
+                            // <canvas id="render" class="client_canvas" ></canvas>
+                            <video id="render" autoplay=true class="client_canvas"></video>
+                        </div>
+                        
                     </div>
                     <DeviceSelector on_microphone_select={mic_callback} on_camera_select={cam_callback}/>
-                    <div class="consumer">
-                        <div>
-                            <button onclick={ on_video_btn }>{"Video"}</button>
-                        </div>
-                        <video class="self-camera" autoplay=true id={VIDEO_ELEMENT_ID}></video>
-                        <canvas id="render" class="client_canvas" ></canvas>
-                    </div>
+                    
                 </div>
                 
                 <div id="shcreen_container" class="consumer unvis">
-                    <canvas id="screen_share" class="screen_canvas" ></canvas>
+                    // <canvas id="screen_share" class="screen_canvas" ></canvas>
+                    <video id="screen_share" autoplay=true class="screen_canvas"></video>
                 </div>
             </main>
         }
