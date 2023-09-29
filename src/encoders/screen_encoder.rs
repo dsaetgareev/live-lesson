@@ -100,8 +100,8 @@ impl ScreenEncoder {
             let screen_encoder = Box::new(VideoEncoder::new(&screen_encoder_init).unwrap());
             let mut screen_encoder_config =
                 VideoEncoderConfig::new(VIDEO_CODEC, SCREEN_VIDEO_HEIGHT as u32, SCREEN_VIDEO_WIDTH as u32);
-            screen_encoder_config.bitrate(60_000f64);
-            screen_encoder_config.latency_mode(LatencyMode::Realtime);
+            screen_encoder_config.bitrate(100_000f64);
+            screen_encoder_config.latency_mode(LatencyMode::Quality);
             screen_encoder.configure(&screen_encoder_config);
 
             let screen_processor =

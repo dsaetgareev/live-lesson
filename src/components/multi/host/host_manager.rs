@@ -3,7 +3,7 @@ use std::{collections::HashMap, cell::RefCell, rc::Rc, sync::Arc};
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
 use web_sys::{ EncodedAudioChunkInit, EncodedAudioChunk };
 
-use crate::{utils, utils::{inputs::{Message, ClientMessage}, dom::{create_video_id, on_visible_el}, device::{create_video_decoder_frame, create_audio_decoder, create_video_decoder_video}}, models::{video::Video, client::{ClientProps, ClientItem}, host::HostPorps, commons::AreaKind}, wrappers::EncodedAudioChunkTypeWrapper};
+use crate::{ utils::{inputs::{Message, ClientMessage}, dom::{create_video_id, on_visible_el}, device::{create_video_decoder_frame, create_audio_decoder }}, models::{video::Video, client::{ClientProps, ClientItem}, host::HostPorps, commons::AreaKind}, wrappers::EncodedAudioChunkTypeWrapper};
 
 
 pub struct HostManager {
@@ -69,122 +69,107 @@ impl HostManager {
             let decoders = self.decoders.clone();
             let audio = create_audio_decoder();
             let on_tick = on_tick.clone();
-            move |user_id: UserId, message: String| { 
-                let _ = match serde_json::from_str::<ClientMessage>(&message) {
-                    Ok(input) => {
-                        match input {
-                            ClientMessage::ClientText { message } => {
-                                // if client_props.borrow().client_id == user_id.to_string() {
-                                //     client_props.borrow_mut().set_editor_content(message.clone());
-                                //     client_props.borrow_mut().is_write = true;
-                                // }
-                                
-                                // players.as_ref().borrow_mut().insert(user_id, message);
-                                on_tick.borrow()();
-                            },
-                            ClientMessage::ClientVideo { 
-                                message,
-                            } => {
-                                let video = decoders.as_ref().borrow().get(&user_id).unwrap().clone();
-                                let mut video = video.as_ref().borrow_mut();
-                                let _ = video.decode_break(Arc::new(message));
-                            },
-                            ClientMessage::ClientAudio { 
-                                message,
-                                chunk_type,
-                                timestamp,
-                                duration
-                            } => {
-                                let _ = audio.audio_context.resume();
-                                    let chunk_type = EncodedAudioChunkTypeWrapper::from(chunk_type).0;
-                                    let audio_data = &message;
-                                    let audio_data_js: js_sys::Uint8Array =
-                                        js_sys::Uint8Array::new_with_length(audio_data.len() as u32);
-                                    audio_data_js.copy_from(audio_data.as_slice());
-                                    let chunk_type = EncodedAudioChunkTypeWrapper(chunk_type);
-                                    let mut audio_chunk_init =
-                                        EncodedAudioChunkInit::new(&audio_data_js.into(), timestamp, chunk_type.0);
-                                    audio_chunk_init.duration(duration);
-                                    let encoded_audio_chunk = EncodedAudioChunk::new(&audio_chunk_init).unwrap();
-    
-                                    match audio.audio_decoder.state() {
-                                        web_sys::CodecState::Unconfigured => {
-                                            log::info!("audio decoder unconfigured");
-                                        },
-                                        web_sys::CodecState::Configured => {
-                                            audio.audio_decoder.decode(&encoded_audio_chunk);
-                                        },
-                                        web_sys::CodecState::Closed => {
-                                            log::info!("audio_decoder closed");
-                                        },
-                                        _ => {}
-                                    }    
-                            }
-                            ClientMessage::ClientSwitchVideo { 
-                                message
-                            } => {
-                                let video_id = create_video_id(user_id.to_string());
-                                let client_logo_id = create_video_id(format!("{}_{}", "client-video-logo", user_id.to_string()));
-                                on_visible_el(message, &video_id, &client_logo_id);
-                                on_tick.borrow()();
-                            },
-                            ClientMessage::ClientToClient { 
-                                message,
-                                area_kind
-                            } => {
-                               
-                                match players.as_ref().borrow_mut().get_mut(&user_id) {
-                                    Some(client_item) => {
-                                        client_item.set_area_kind(area_kind);
-                                        match area_kind {
-                                            AreaKind::Editor => {
-                                                client_item.set_editor_content(message.clone());
-                                                if client_props.borrow().client_id == user_id.to_string() {
-                                                    client_props.borrow_mut().set_editor_content(message);
-                                                    client_props.borrow_mut().is_write = true;
-                                                }
-                                            },
-                                            AreaKind::TextArea => {
-                                                client_item.set_text_area_content(message.clone());
-                                                log::error!("text {}", client_item.text_area_content);
-                                                if client_props.borrow().client_id == user_id.to_string() {
-                                                    client_props.borrow_mut().set_text_area_content(message);
-                                                }
-                                            },
-                                        }
-                                        
-                                    },
-                                    None => {
-                                        log::error!("cannot find client item, id: {}", user_id.to_string());
-                                    },
-                                }
-                                
-                                on_tick.borrow()();
-                                                        
-                            },
-                            ClientMessage::ClientSwitchArea { 
-                                message
-                            } => {
-                                if client_props.borrow().client_id == user_id.to_string() {
-                                    client_props.borrow_mut().set_area_kind(message);
-                                }
+            move |user_id: UserId, message: ClientMessage| { 
+                match message {
+                    ClientMessage::ClientText { message: _ } => {
+                        on_tick.borrow()();
+                    },
+                    ClientMessage::ClientVideo { 
+                        message,
+                    } => {
+                        let video = decoders.as_ref().borrow().get(&user_id).unwrap().clone();
+                        let mut video = video.as_ref().borrow_mut();
+                        let _ = video.decode_break(Arc::new(message));
+                    },
+                    ClientMessage::ClientAudio { 
+                        message,
+                        chunk_type,
+                        timestamp,
+                        duration
+                    } => {
+                        let _ = audio.audio_context.resume();
+                            let chunk_type = EncodedAudioChunkTypeWrapper::from(chunk_type).0;
+                            let audio_data = &message;
+                            let audio_data_js: js_sys::Uint8Array =
+                                js_sys::Uint8Array::new_with_length(audio_data.len() as u32);
+                            audio_data_js.copy_from(audio_data.as_slice());
+                            let chunk_type = EncodedAudioChunkTypeWrapper(chunk_type);
+                            let mut audio_chunk_init =
+                                EncodedAudioChunkInit::new(&audio_data_js.into(), timestamp, chunk_type.0);
+                            audio_chunk_init.duration(duration);
+                            let encoded_audio_chunk = EncodedAudioChunk::new(&audio_chunk_init).unwrap();
 
-                                match players.as_ref().borrow_mut().get_mut(&user_id) {
-                                    Some(client_item) => {
-                                        client_item.set_area_kind(message)
+                            match audio.audio_decoder.state() {
+                                web_sys::CodecState::Unconfigured => {
+                                    log::info!("audio decoder unconfigured");
+                                },
+                                web_sys::CodecState::Configured => {
+                                    audio.audio_decoder.decode(&encoded_audio_chunk);
+                                },
+                                web_sys::CodecState::Closed => {
+                                    log::info!("audio_decoder closed");
+                                },
+                                _ => {}
+                            }    
+                    }
+                    ClientMessage::ClientSwitchVideo { 
+                        message
+                    } => {
+                        let video_id = create_video_id(user_id.to_string());
+                        let client_logo_id = create_video_id(format!("{}_{}", "client-video-logo", user_id.to_string()));
+                        on_visible_el(message, &video_id, &client_logo_id);
+                        on_tick.borrow()();
+                    },
+                    ClientMessage::ClientToClient { 
+                        message,
+                        area_kind
+                    } => {
+                       
+                        match players.as_ref().borrow_mut().get_mut(&user_id) {
+                            Some(client_item) => {
+                                client_item.set_area_kind(area_kind);
+                                match area_kind {
+                                    AreaKind::Editor => {
+                                        client_item.set_editor_content(message.clone());
+                                        if client_props.borrow().client_id == user_id.to_string() {
+                                            client_props.borrow_mut().set_editor_content(message);
+                                            client_props.borrow_mut().is_write = true;
+                                        }
                                     },
-                                    None => todo!(),
+                                    AreaKind::TextArea => {
+                                        client_item.set_text_area_content(message.clone());
+                                        if client_props.borrow().client_id == user_id.to_string() {
+                                            client_props.borrow_mut().set_text_area_content(message);
+                                        }
+                                    },
                                 }
                                 
-                                on_tick.borrow()();
-                            }
+                            },
+                            None => {
+                                log::error!("cannot find client item, id: {}", user_id.to_string());
+                            },
                         }
+                        
+                        on_tick.borrow()();
+                                                
                     },
-                    Err(err) => {
-                        log::error!("failed to get input message: {:#?}", err);
-                    },
-                };
-                
+                    ClientMessage::ClientSwitchArea { 
+                        message
+                    } => {
+                        if client_props.borrow().client_id == user_id.to_string() {
+                            client_props.borrow_mut().set_area_kind(message);
+                        }
+
+                        match players.as_ref().borrow_mut().get_mut(&user_id) {
+                            Some(client_item) => {
+                                client_item.set_area_kind(message)
+                            },
+                            None => todo!(),
+                        }
+                        
+                        on_tick.borrow()();
+                    }
+                }            
             }
         };
 

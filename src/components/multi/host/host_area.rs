@@ -7,7 +7,7 @@ use web_sys::{InputEvent, HtmlTextAreaElement, MouseEvent};
 use yew::{Component, Properties, html, Callback};
 use yew_icons::{Icon, IconId};
 
-use crate::{models::{host::HostPorps, commons::AreaKind}, components::editor::editor::EditorWrapper, utils::{self, inputs::Message}};
+use crate::{models::{host::HostPorps, commons::AreaKind}, components::editor::editor::EditorWrapper, utils::inputs::Message};
 
 
 const TEXTAREA_ID: &str = "document-textarea";
@@ -21,17 +21,17 @@ pub enum Msg {
 #[derive(PartialEq, Properties)]
 pub struct HostAreaProps {
     pub host_props: Rc<RefCell<HostPorps>>,
-    pub send_message_cb: Callback<(UserId, String)>,
-    pub send_message_all_cb: Callback<String>,
+    pub send_message_cb: Callback<(UserId, Message)>,
+    pub send_message_all_cb: Callback<Message>,
 }
 
 pub struct HostArea {
     pub host_props: Rc<RefCell<HostPorps>>,
-    pub send_message_all: Callback<String>,
+    pub send_message_all: Callback<Message>,
 }
 
 impl HostArea {
-    pub fn send_message_to_all(&self, message: String) {
+    pub fn send_message_to_all(&self, message: Message) {
         self.send_message_all.emit(message);
     }
 }
@@ -48,7 +48,7 @@ impl Component for HostArea {
          }
     }
 
-    fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::UpdateValue(content) => {
                 let host_area_kind = self.host_props.borrow().host_area_kind;
@@ -65,7 +65,6 @@ impl Component for HostArea {
                              message: content,
                              area_kind: self.host_props.as_ref().borrow().host_area_kind
                 };
-                let message = serde_json::to_string(&message).unwrap();
                 let _ = self.send_message_to_all(message);
                 false
             },
@@ -74,12 +73,7 @@ impl Component for HostArea {
             },
             Msg::SwitchArea(area_kind) => {
                 let message = Message::HostSwitchArea { message: area_kind };
-                match serde_json::to_string(&message) {
-                    Ok(message) => {
-                        self.send_message_to_all(message);
-                    },
-                    Err(_) => todo!(),
-                }
+                self.send_message_to_all(message);
                 true
             }
         }

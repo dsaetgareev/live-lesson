@@ -1,30 +1,21 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::str::FromStr;
-use std::sync::Arc;
 use gloo_timers::callback::Timeout;
-use monaco::api::TextModel;
-use wasm_bindgen::JsCast;
 use wasm_peers::one_to_many::MiniClient;
-use wasm_peers::{get_random_session_id, ConnectionType, SessionId};
-use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk, InputEvent, HtmlTextAreaElement};
-use yew::{html, Component, Context, Html, NodeRef, Callback};
+use wasm_peers::{get_random_session_id, SessionId};
+use yew::{html, Component, Context, Html, Callback};
 use log::error;
 use yew_icons::{Icon, IconId};
 
-use crate::components::editor::editor::EditorWrapper;
 use crate::components::multi::client::client_area::ClientArea;
 use crate::components::multi::client::host_area::HostArea;
 use crate::encoders::camera_encoder::CameraEncoder;
-use crate::crypto::aes::Aes128State;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
 use crate::models::client::ClientProps;
-use crate::models::commons::AreaKind;
 use crate::models::host::HostPorps;
 use crate::models::packet::VideoPacket;
-use crate::utils::device::{create_video_decoder, create_audio_decoder, create_video_decoder_frame};
 use crate::utils::dom::on_visible_el;
-use crate::utils::inputs::Message;
 use crate::utils::inputs::ClientMessage;
 use crate::utils;
 use crate::wrappers::EncodedAudioChunkTypeWrapper;
@@ -32,9 +23,6 @@ use crate::media_devices::device_selector::DeviceSelector;
 
 use super::client_manager::ClientManager;
 
-
-const TEXTAREA_ID: &str = "document-textarea";
-const TEXTAREA_ID_CLIENT: &str = "client-textarea";
 const VIDEO_ELEMENT_ID: &str = "webcam";
 
 pub enum Msg {
@@ -65,9 +53,9 @@ impl Client {
             .mini_client
             .clone()
     }
-    pub fn send_message_to_host_cb(&self) -> Callback<String> {
+    pub fn send_message_to_host_cb(&self) -> Callback<ClientMessage> {
         let mc = self.get_mini_client();
-        let send_message = Callback::from(move |message: String| {
+        let send_message = Callback::from(move |message: ClientMessage | {
             mc.send_message_to_host(&message).expect("cannot send message");
         });
         send_message
@@ -128,7 +116,6 @@ impl Component for Client {
             Msg::UpdateValue(content) => {
                 self.client_props.borrow_mut().client_editor_content = content.clone();
                 let message = ClientMessage::ClientText { message: content };
-                let message = serde_json::to_string(&message).unwrap();
                 let _ = self.client_manager.as_mut().unwrap().mini_client.send_message_to_host(&message);
                 true
             },
@@ -151,7 +138,6 @@ impl Component for Client {
                 let is_video = !self.camera.get_enabled();
                 on_visible_el(is_video, VIDEO_ELEMENT_ID, "video-logo");
                 let message = ClientMessage::ClientSwitchVideo { message: is_video };
-                let message = serde_json::to_string(&message).unwrap();
                 let _ = self.client_manager.as_mut().unwrap().mini_client.send_message_to_host(&message);
                 
                 log::info!("{}", on_video);
@@ -174,12 +160,7 @@ impl Component for Client {
                     let message = ClientMessage::ClientVideo { 
                         message: packet
                     };
-                    match serde_json::to_string(&message) {
-                        Ok(message) => {
-                            let _ = ms.send_message_to_host(&message);
-                        },
-                        Err(_) => todo!(),
-                    };
+                    let _ = ms.send_message_to_host(&message);
                     
                 };
                 self.camera.start(
@@ -216,20 +197,13 @@ impl Component for Client {
 
                     let chunk_type = EncodedAudioChunkTypeWrapper(chunk.type_()).to_string();
                     let timestamp = chunk.timestamp();
-                    // let timestamp = Date::new_0().get_time() as f64;
-                    // let data = aes.encrypt(&data).unwrap();
                     let message = ClientMessage::ClientAudio { 
                         message: data,
                         chunk_type,
                         timestamp,
                         duration
                     };
-                    match serde_json::to_string(&message) {
-                        Ok(message) => {
-                            let _ = ms.send_message_to_host(&message);
-                        },
-                        Err(_) => todo!(),
-                    };                    
+                    let _ = ms.send_message_to_host(&message);            
                 };
                 self.microphone.start(
                     on_audio
@@ -240,21 +214,9 @@ impl Component for Client {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let oninput = ctx.link().callback(|e:InputEvent| {
-            let content = e
-                .target()
-                .unwrap()
-                .unchecked_into::<HtmlTextAreaElement>()
-                .value();
-            Self::Message::UpdateValue(content)
-        });
-        let placeholder = "This is a live document shared with other users.\nYou will be allowed \
-                           to write once other join, or your connection is established.";
-
         let mic_callback = ctx.link().callback(Msg::AudioDeviceChanged);
         let cam_callback = ctx.link().callback(Msg::VideoDeviceChanged);
         let on_video_btn = ctx.link().callback(|_| Msg::SwitchVedeo);
-        let client_value = self.client_props.borrow().client_editor_content.clone();
 
         let render_host_area = || {
             html! {
@@ -313,15 +275,13 @@ impl Component for Client {
                             </div>
                         </div>
                         <div class="col-3">
-                            // <textarea id={ TEXTAREA_ID_CLIENT } value={ client_value } class="document" { placeholder } { oninput }/>
                             { render_client_area() }
                         </div>
                         <div class="col">
                             { render_host_area() }
                             
                         </div>
-                        <div class="col">                                                
-                            // <canvas id="render" class="client_canvas" ></canvas>
+                        <div class="col">                                             
                             <video id="render" autoplay=true class="client_canvas"></video>
                         </div>
                         
@@ -331,7 +291,6 @@ impl Component for Client {
                 </div>
                 
                 <div id="shcreen_container" class="consumer unvis">
-                    // <canvas id="screen_share" class="screen_canvas" ></canvas>
                     <video id="screen_share" autoplay=true class="screen_canvas"></video>
                 </div>
             </main>

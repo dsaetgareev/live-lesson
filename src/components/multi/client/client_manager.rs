@@ -3,9 +3,8 @@ use std::{rc::Rc, cell::RefCell, sync::Arc};
 use wasm_peers::{one_to_many::MiniClient, ConnectionType, SessionId};
 use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk};
 
-use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind}, utils::{self, inputs::Message, device::{create_video_decoder, create_video_decoder_frame, create_audio_decoder, create_video_decoder_video}, dom::on_visible_el}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper};
+use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind}, utils::{ inputs::Message, device::{create_audio_decoder, create_video_decoder_video}, dom::on_visible_el}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper};
 
-const VIDEO_ELEMENT_ID: &str = "webcam";
 
 pub struct ClientManager {
     pub mini_client: MiniClient
@@ -76,167 +75,160 @@ impl ClientManager {
             let mut screen_share_decoder = screen_share_decoder.clone();
             let mut audio = audio.clone();
             let host_props = host_props.clone();
-            move |message: String| {
-                let _ = match serde_json::from_str::<Message>(&message) {
-                    Ok(input) => {
-                        match input {
-                            Message::HostToHost { 
-                                message,
-                                area_kind, 
-                            } => {
-                                match area_kind {
-                                    AreaKind::Editor => {
-                                        host_props.borrow_mut().set_editor_content(message);
-                                    },
-                                    AreaKind::TextArea => {
-                                        host_props.borrow_mut().host_area_content.set_content(message)
-                                    },
+            move |message: Message| {
+                match message {
+                    Message::HostToHost { 
+                        message,
+                        area_kind, 
+                    } => {
+                        match area_kind {
+                            AreaKind::Editor => {
+                                host_props.borrow_mut().set_editor_content(message);
+                            },
+                            AreaKind::TextArea => {
+                                host_props.borrow_mut().host_area_content.set_content(message)
+                            },
+                        }
+                        
+                        on_tick.borrow()();
+                    },
+                    Message::HostToClient {
+                        message,
+                        area_kind
+                    } => {
+                        match area_kind {
+                            AreaKind::Editor => {
+                                client_props.borrow_mut().set_editor_content(message);
+                            },
+                            AreaKind::TextArea => {
+                                client_props.borrow_mut().set_text_area_content(message);
+                            },
+                        }                                
+                        on_tick.borrow()();
+                    },
+                    Message::Init { 
+                        editor_content,
+                        text_area_content,
+                        area_kind
+                    } => {
+                        host_props.borrow_mut().host_area_content.set_content(text_area_content);
+                        host_props.borrow_mut().set_editor_content(editor_content);
+                        host_props.borrow_mut().set_host_area_kind(area_kind);
+                        on_tick.borrow()();
+                    },
+                    Message::HostVideo { 
+                        message,
+                    } => {
+                        if video.on_video {
+                             if video.check_key {
+                                if message.chunk_type != "key" {
+                                    return;
                                 }
-                                
-                                on_tick.borrow()();
-                            },
-                            Message::HostToClient {
-                                message,
-                                area_kind
-                            } => {
-                                match area_kind {
-                                    AreaKind::Editor => {
-                                        client_props.borrow_mut().set_editor_content(message);
-                                    },
-                                    AreaKind::TextArea => {
-                                        client_props.borrow_mut().set_text_area_content(message);
-                                    },
-                                }                                
-                                on_tick.borrow()();
-                            },
-                            Message::Init { 
-                                editor_content,
-                                text_area_content,
-                                area_kind
-                            } => {
-                                host_props.borrow_mut().host_area_content.set_content(text_area_content);
-                                host_props.borrow_mut().set_editor_content(editor_content);
-                                host_props.borrow_mut().set_host_area_kind(area_kind);
-                                on_tick.borrow()();
-                            },
-                            Message::HostVideo { 
-                                message,
-                            } => {
-                                if video.on_video {
-                                     if video.check_key {
-                                        if message.chunk_type != "key" {
-                                            return;
-                                        }
-                                        video.check_key = false;
+                                video.check_key = false;
+                            }
+                            match video.video_decoder.state() {
+                                web_sys::CodecState::Unconfigured => {
+                                    log::info!("video decoder unconfigured");
+                                },
+                                web_sys::CodecState::Configured => {
+                                    if let Err(err) = video.decode(Arc::new(message)) {
+                                        log::error!("error on decode {}", err);
                                     }
-                                    match video.video_decoder.state() {
-                                        web_sys::CodecState::Unconfigured => {
-                                            log::info!("video decoder unconfigured");
-                                        },
-                                        web_sys::CodecState::Configured => {
-                                            if let Err(err) = video.decode(Arc::new(message)) {
-                                                log::error!("error on decode {}", err);
-                                            }
-                                        },
-                                        web_sys::CodecState::Closed => {
-                                            log::info!("video decoder closed");
-                                            video.video_decoder.configure(&video.video_config);
-                                            video.check_key = true;
-                                        },
-                                        _ => {},
-                                    }
-                                }
-                            },
-                            Message::HostIsScreenShare { 
-                                message
-                            } => {
-                                on_visible_el(message, "container", "shcreen_container");
-                                on_tick.borrow()();
-                            },
-                            Message::HostScreenShare { 
-                                message
-                            } => {
-                                if screen_share_decoder.check_key {
-                                        if message.chunk_type != "key" {
-                                            return;
-                                        }
-                                        screen_share_decoder.check_key = false;
-                                } 
-                                match screen_share_decoder.video_decoder.state() {
-                                    web_sys::CodecState::Unconfigured => {
-                                        log::info!("video decoder unconfigured");
-                                    },
-                                    web_sys::CodecState::Configured => {
-                                        let _ = screen_share_decoder.decode_break(Arc::new(message));
-                                    },
-                                    web_sys::CodecState::Closed => {
-                                        log::info!("video decoder closed");
-                                        video.video_decoder.configure(&video.video_config);
-                                        video.check_key = true;
-                                    },
-                                    _ => {},
-                                }
-                            },
-                            Message::HostAudio { 
-                                message,
-                                chunk_type,
-                                timestamp,
-                                duration
-                            } => {     
-                                if audio.on_speakers {
-                                    let _ = audio.audio_context.resume();
-                                    let chunk_type = EncodedAudioChunkTypeWrapper::from(chunk_type).0;
-                                    let audio_data = &message;
-                                    let audio_data_js: js_sys::Uint8Array =
-                                        js_sys::Uint8Array::new_with_length(audio_data.len() as u32);
-                                    audio_data_js.copy_from(audio_data.as_slice());
-                                    let chunk_type = EncodedAudioChunkTypeWrapper(chunk_type);
-                                    let mut audio_chunk_init =
-                                        EncodedAudioChunkInit::new(&audio_data_js.into(), timestamp, chunk_type.0);
-                                    audio_chunk_init.duration(duration);
-                                    let encoded_audio_chunk = EncodedAudioChunk::new(&audio_chunk_init).unwrap();
-    
-                                    match audio.audio_decoder.state() {
-                                        web_sys::CodecState::Unconfigured => {
-                                            log::info!("audio decoder unconfigured");
-                                        },
-                                        web_sys::CodecState::Configured => {
-                                            audio.audio_decoder.decode(&encoded_audio_chunk);
-                                        },
-                                        web_sys::CodecState::Closed => {
-                                            log::info!("audio_decoder closed");
-                                        },
-                                        _ => {}
-                                    }    
-                                }
-                                
-                            },
-                            Message::HostSwitchAudio => {
-                                audio.on_speakers = !audio.on_speakers;
-                            },
-                            Message::HostSwitchVideo => {
-                                video.video_start = !video.video_start;
-                                if video.video_start {
+                                },
+                                web_sys::CodecState::Closed => {
+                                    log::info!("video decoder closed");
                                     video.video_decoder.configure(&video.video_config);
-                                    video.on_video = !video.on_video;
                                     video.check_key = true;
-                                } else {
-                                    video.on_video = !video.on_video;
-                                    video.video_decoder.reset();
-                                }
-                            },
-                            Message::HostSwitchArea {
-                                message 
-                            } => {
-                                host_props.borrow_mut().set_host_area_kind(message);
-                                on_tick.borrow()();
+                                },
+                                _ => {},
                             }
                         }
                     },
-                    Err(err) => {
-                        log::error!("failed to get input message: {:#?}", err);
+                    Message::HostIsScreenShare { 
+                        message
+                    } => {
+                        on_visible_el(message, "container", "shcreen_container");
+                        on_tick.borrow()();
                     },
-                };
+                    Message::HostScreenShare { 
+                        message
+                    } => {
+                        if screen_share_decoder.check_key {
+                                if message.chunk_type != "key" {
+                                    return;
+                                }
+                                screen_share_decoder.check_key = false;
+                        } 
+                        match screen_share_decoder.video_decoder.state() {
+                            web_sys::CodecState::Unconfigured => {
+                                log::info!("video decoder unconfigured");
+                            },
+                            web_sys::CodecState::Configured => {
+                                let _ = screen_share_decoder.decode_break(Arc::new(message));
+                            },
+                            web_sys::CodecState::Closed => {
+                                log::info!("video decoder closed");
+                                video.video_decoder.configure(&video.video_config);
+                                video.check_key = true;
+                            },
+                            _ => {},
+                        }
+                    },
+                    Message::HostAudio { 
+                        message,
+                        chunk_type,
+                        timestamp,
+                        duration
+                    } => {     
+                        if audio.on_speakers {
+                            let _ = audio.audio_context.resume();
+                            let chunk_type = EncodedAudioChunkTypeWrapper::from(chunk_type).0;
+                            let audio_data = &message;
+                            let audio_data_js: js_sys::Uint8Array =
+                                js_sys::Uint8Array::new_with_length(audio_data.len() as u32);
+                            audio_data_js.copy_from(audio_data.as_slice());
+                            let chunk_type = EncodedAudioChunkTypeWrapper(chunk_type);
+                            let mut audio_chunk_init =
+                                EncodedAudioChunkInit::new(&audio_data_js.into(), timestamp, chunk_type.0);
+                            audio_chunk_init.duration(duration);
+                            let encoded_audio_chunk = EncodedAudioChunk::new(&audio_chunk_init).unwrap();
+
+                            match audio.audio_decoder.state() {
+                                web_sys::CodecState::Unconfigured => {
+                                    log::info!("audio decoder unconfigured");
+                                },
+                                web_sys::CodecState::Configured => {
+                                    audio.audio_decoder.decode(&encoded_audio_chunk);
+                                },
+                                web_sys::CodecState::Closed => {
+                                    log::info!("audio_decoder closed");
+                                },
+                                _ => {}
+                            }    
+                        }
+                        
+                    },
+                    Message::HostSwitchAudio => {
+                        audio.on_speakers = !audio.on_speakers;
+                    },
+                    Message::HostSwitchVideo => {
+                        video.video_start = !video.video_start;
+                        if video.video_start {
+                            video.video_decoder.configure(&video.video_config);
+                            video.on_video = !video.on_video;
+                            video.check_key = true;
+                        } else {
+                            video.on_video = !video.on_video;
+                            video.video_decoder.reset();
+                        }
+                    },
+                    Message::HostSwitchArea {
+                        message 
+                    } => {
+                        host_props.borrow_mut().set_host_area_kind(message);
+                        on_tick.borrow()();
+                    }
+                }
             } 
         
         };

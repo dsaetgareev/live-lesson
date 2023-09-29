@@ -1,8 +1,6 @@
 use std::{rc::Rc, cell::RefCell};
 
 use monaco::api::TextModel;
-use wasm_bindgen::JsCast;
-use web_sys::{HtmlTextAreaElement, InputEvent};
 use yew::{Component, Properties, Callback, html};
 
 use crate::{models::{commons::AreaKind, host::HostPorps}, components::editor::editor::EditorWrapper};

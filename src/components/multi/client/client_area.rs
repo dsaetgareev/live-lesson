@@ -19,16 +19,16 @@ pub enum Msg {
 #[derive(PartialEq, Properties)]
 pub struct ClientAreaProps {
     pub client_props: Rc<RefCell<ClientProps>>,
-    pub send_message_to_host_cb: Callback<String>,
+    pub send_message_to_host_cb: Callback<ClientMessage>,
 }
 
 pub struct ClientArea {
     pub client_props: Rc<RefCell<ClientProps>>,
-    pub send_message_to_host_cb: Callback<String>,
+    pub send_message_to_host_cb: Callback<ClientMessage>,
 }
 
 impl ClientArea {
-    pub fn send_message_to_host(&self, message: String) {
+    pub fn send_message_to_host(&self, message: ClientMessage) {
         self.send_message_to_host_cb.emit(message);
     }
 }
@@ -45,7 +45,7 @@ impl Component for ClientArea {
          }
     }
 
-    fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::UpdateValue(content) => {
                 let host_area_kind = self.client_props.borrow().client_area_kind;
@@ -62,7 +62,6 @@ impl Component for ClientArea {
                              message: content,
                              area_kind: self.client_props.as_ref().borrow().client_area_kind
                 };
-                let message = serde_json::to_string(&message).unwrap();
                 let _ = self.send_message_to_host(message);
                 false
             },
@@ -71,12 +70,7 @@ impl Component for ClientArea {
             },
             Msg::SwitchArea(area_kind) => {
                 let message = ClientMessage::ClientSwitchArea { message: area_kind };
-                match serde_json::to_string(&message) {
-                    Ok(message) => {
-                        self.send_message_to_host(message);
-                    },
-                    Err(_) => todo!(),
-                }
+                self.send_message_to_host(message);
                 true
             },
         }

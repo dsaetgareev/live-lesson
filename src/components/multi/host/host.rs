@@ -17,13 +17,12 @@ use crate::encoders::camera_encoder::CameraEncoder;
 use crate::media_devices::device_selector::DeviceSelector;
 use crate::components::multi::host::host_manager::HostManager;
 use crate::models::client::{ClientProps, ClientItem};
-use crate::models::commons::AreaKind;
 use crate::models::host::HostPorps;
 use crate::models::packet::VideoPacket;
 use crate::utils::inputs::Message;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
 use crate::encoders::screen_encoder::ScreenEncoder;
-use crate::utils::{self, dom::get_window};
+use crate::utils;
 use crate::wrappers::EncodedAudioChunkTypeWrapper;
 
 const VIDEO_ELEMENT_ID: &str = "webcam";
@@ -45,7 +44,6 @@ pub enum Msg {
 pub struct Host {
     session_id: SessionId,
     host_manager: Option<Rc<RefCell<HostManager>>>,
-    tick_callback: Closure<dyn FnMut()>,
     host_props: Rc<RefCell<HostPorps>>,
     client_props: Rc<RefCell<ClientProps>>,
     camera: CameraEncoder,
@@ -55,7 +53,7 @@ pub struct Host {
 }
 
 impl Host {
-    fn send_message_to_all(&mut self, message: &str) {
+    fn _send_message_to_all(&mut self, message: &Message) {
         self.host_manager
             .as_ref()
             .unwrap()
@@ -66,7 +64,7 @@ impl Host {
             .expect("not send message")
     }
 
-    fn send_message(&mut self, user_id: UserId, message: &str) {
+    fn send_message(&mut self, user_id: UserId, message: &Message) {
         let _ = self.host_manager
             .as_ref()
             .expect("cannot get host manager")
@@ -94,17 +92,17 @@ impl Host {
             .clone()
     }
 
-    fn send_message_cb(&self) -> Callback<(UserId, String)> {
+    fn send_message_cb(&self) -> Callback<(UserId, Message)> {
         let ms = self.get_mini_server();
-        let send_message = Callback::from(move |(user_id, message ): (UserId, String)| {
+        let send_message = Callback::from(move |(user_id, message ): (UserId, Message)| {
             ms.send_message(user_id, &message).expect("cannot send message");
         });
         send_message
     }
 
-    fn send_message_all_cb(&self) -> Callback<String> {
+    fn send_message_all_cb(&self) -> Callback<Message> {
         let ms = self.get_mini_server();
-        let send_message = Callback::from(move |message: String| {
+        let send_message = Callback::from(move |message: Message| {
             ms.send_message_to_all(&message).expect("cannot send message");
         });
         send_message
@@ -135,15 +133,10 @@ impl Component for Host {
                 }
             };
 
-        let tick_callback = {
-            let link = ctx.link().clone();
-            Closure::wrap(Box::new(move || link.send_message(Msg::Tick)) as Box<dyn FnMut()>)
-        };
         ctx.link().send_message(Msg::Init);
         Self {
             session_id,
             host_manager: None,
-            tick_callback,
             host_props: Rc::new(RefCell::new(HostPorps::new())),
             client_props: Rc::new(RefCell::new(ClientProps::new(String::default(), String::default()))),
             camera: CameraEncoder::new(),
@@ -199,12 +192,7 @@ impl Component for Host {
                     let message = Message::HostVideo { 
                         message: packet
                     };
-                    match serde_json::to_string(&message) {
-                        Ok(message) => {
-                            let _ = ms.send_message_to_all(&message);
-                        },
-                        Err(_) => todo!(),
-                    };
+                    let _ = ms.send_message_to_all(&message);
                     
                 };
                 self.camera.start(
@@ -222,23 +210,13 @@ impl Component for Host {
 
                 
                 let ms = self.get_mini_server();
-                match serde_json::to_string(&Message::HostIsScreenShare { message: true }) {
-                    Ok(message) => {
-                        let _ = ms.send_message_to_all(&message);
-                    },
-                    Err(_) => todo!(),
-                }
+                let _ = ms.send_message_to_all(&Message::HostIsScreenShare { message: true });
                 let on_frame = move |packet: VideoPacket| {
                     
                     let message = Message::HostScreenShare { 
                         message: packet,
                     };
-                    match serde_json::to_string(&message) {
-                        Ok(message) => {
-                            let _ = ms.send_message_to_all(&message);
-                        },
-                        Err(_) => todo!(),
-                    };                    
+                    let _ = ms.send_message_to_all(&message);                 
                 };
 
                 let ms = self.get_mini_server();
@@ -247,12 +225,7 @@ impl Component for Host {
                     link.send_message(Msg::ResumeVideo);
                     link.send_message(Msg::EnableVideo(true));
                     let message = Message::HostIsScreenShare { message: false };
-                    match serde_json::to_string(&message) {
-                        Ok(message) => {
-                            let _ = ms.send_message_to_all(&message);
-                        },
-                        Err(_) => todo!(),
-                    };   
+                    let _ = ms.send_message_to_all(&message);
                 };
                 self.screen.start(
                     on_frame,
@@ -289,12 +262,7 @@ impl Component for Host {
                         timestamp,
                         duration
                     };
-                    match serde_json::to_string(&message) {
-                        Ok(message) => {
-                            let _ = ms.send_message_to_all(&message);
-                        },
-                        Err(_) => todo!(),
-                    };                    
+                    let _ = ms.send_message_to_all(&message);                
                 };              
                 self.microphone.start(
                     on_audio
@@ -322,13 +290,11 @@ impl Component for Host {
                 false
             }
             Msg::SwitchSpeakers(client_id) => {
-                let message = serde_json::to_string(&Message::HostSwitchAudio).unwrap();
-                let _ = self.send_message(UserId::new(client_id.parse::<u64>().unwrap()), &message);
+                let _ = self.send_message(UserId::new(client_id.parse::<u64>().unwrap()), &Message::HostSwitchAudio);
                 false
             }
             Msg::SwitchVideo(client_id) => {
-                let message = serde_json::to_string(&Message::HostSwitchVideo).unwrap();
-                let _ = self.send_message(UserId::new(client_id.parse::<u64>().unwrap()), &message);
+                let _ = self.send_message(UserId::new(client_id.parse::<u64>().unwrap()), &Message::HostSwitchVideo);
                 false
             }
         }
@@ -389,7 +355,6 @@ impl Component for Host {
             
             match &self.host_manager {
                 Some(_host_manager) => {
-                    let area_kind = self.client_props.as_ref().borrow().client_area_kind;
                     let link = ctx.link().clone();
                     let on_tick = Callback::from(move |_: String| {
                         link.send_message(Msg::Tick);

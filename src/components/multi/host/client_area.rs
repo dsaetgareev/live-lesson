@@ -19,19 +19,19 @@ pub enum Msg {
 pub struct ClientAreaProps {
     pub client_props: Rc<RefCell<ClientProps>>,
     pub players: Rc<RefCell<HashMap<UserId, ClientItem>>>,
-    pub send_message_cb: Callback<(UserId, String)>,
+    pub send_message_cb: Callback<(UserId, Message)>,
     pub on_tick: Callback<String>,
 }
 
 pub struct ClientArea {
     pub client_props: Rc<RefCell<ClientProps>>,
-    pub send_message_cb: Callback<(UserId, String)>,
+    pub send_message_cb: Callback<(UserId, Message)>,
     pub players: Rc<RefCell<HashMap<UserId, ClientItem>>>,
 }
 
 impl ClientArea {
 
-    pub fn send_message(&self, message: String) {
+    pub fn send_message(&self, message: Message) {
         let user_id: UserId = UserId::new(self.client_props.borrow().client_id.parse::<u64>().unwrap());
         self.send_message_cb.emit((user_id, message));
     }
@@ -81,7 +81,6 @@ impl Component for ClientArea {
                         message: content,
                         area_kind,
                     };
-                    let message = serde_json::to_string(&message).unwrap();
                     let _ = self.send_message(message);
                     self.client_props.borrow_mut().is_write = false;
                     ctx.props().on_tick.emit("value".to_string());
