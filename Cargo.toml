@@ -117,4 +117,5 @@ yew_icons = {version = "0.7", features = [
     "BootstrapCameraVideoFill",
     "BootstrapCameraVideoOffFill",
     "FontAwesomeSolidHorseHead",
+    "HeroiconsSolidPaintBrush"
     ]}

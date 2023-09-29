@@ -7,7 +7,7 @@ use web_sys::{InputEvent, HtmlTextAreaElement, MouseEvent};
 use yew::{Component, Properties, html, Callback};
 use yew_icons::{Icon, IconId};
 
-use crate::{models::{host::HostPorps, commons::AreaKind}, components::editor::editor::EditorWrapper, utils::inputs::Message};
+use crate::{models::{host::HostPorps, commons::AreaKind}, components::{editor::editor::EditorWrapper, multi::draw}, utils::inputs::Message};
 
 
 const TEXTAREA_ID: &str = "document-textarea";
@@ -127,7 +127,20 @@ impl Component for HostArea {
                 host_props.borrow_mut().host_area_kind = AreaKind::TextArea;
                 Msg::SwitchArea(AreaKind::TextArea)
             });
-
+            let host_props = ctx.props().host_props.clone();
+            let paint_click = ctx.link().callback(move |_: MouseEvent| {
+                let area_kind = &host_props.borrow().host_area_kind;
+                match area_kind {
+                    AreaKind::Editor => {                        
+                        let _ = draw::paint::start(&host_props.borrow().host_editor_content);
+                    },
+                    AreaKind::TextArea => {
+                        let _ = draw::paint::start(&host_props.borrow().host_area_content.content);
+                    },
+                }
+                
+                Msg::Tick
+            });
             html! {
                 <>
                     <button>
@@ -135,6 +148,9 @@ impl Component for HostArea {
                     </button>
                     <button>
                         <Icon icon_id={IconId::BootstrapFileEarmarkText} onclick={ text_area_click }/>
+                    </button>
+                    <button>
+                        <Icon icon_id={IconId::HeroiconsSolidPaintBrush} onclick={ paint_click }/>
                     </button>
                 </>
             }
@@ -145,7 +161,13 @@ impl Component for HostArea {
             <>
                 <div class="col-3">
                     { render_batton_bar() }
-                    { render() }
+                    <div class="row">
+                        { render() }
+                        <div id="host-host">
+
+                        </div>
+                    </div>
+                    
                 </div>
                 
             </>
