@@ -1,6 +1,6 @@
 use yew::Properties;
 
-use super::commons::{AreaKind, TextAreaProps};
+use super::commons::{AreaKind, TextAreaProps, PaintProps};
 
 
 #[derive(PartialEq, Properties)]
@@ -10,6 +10,7 @@ pub struct ClientProps {
     pub client_id: String,
     pub is_write: bool,
     pub client_area_kind: AreaKind,
+    pub paint_props: PaintProps,
 }
 
 impl ClientProps {
@@ -22,7 +23,8 @@ impl ClientProps {
             client_text_area: TextAreaProps::new(),
             client_id,
             is_write: false,
-            client_area_kind: AreaKind::TextArea,    
+            client_area_kind: AreaKind::TextArea,
+            paint_props: PaintProps::new(),  
          }
     }
 

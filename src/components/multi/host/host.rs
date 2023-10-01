@@ -4,7 +4,6 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 use gloo_timers::callback::Timeout;
-use wasm_bindgen::prelude::Closure;
 use wasm_peers::one_to_many::MiniServer;
 use wasm_peers::{get_random_session_id, ConnectionType, SessionId, UserId};
 use yew::prelude::*;

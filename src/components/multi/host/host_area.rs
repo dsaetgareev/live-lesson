@@ -7,7 +7,7 @@ use web_sys::{InputEvent, HtmlTextAreaElement, MouseEvent};
 use yew::{Component, Properties, html, Callback};
 use yew_icons::{Icon, IconId};
 
-use crate::{models::{host::HostPorps, commons::AreaKind}, components::{editor::editor::EditorWrapper, multi::draw}, utils::inputs::Message};
+use crate::{models::{host::HostPorps, commons::AreaKind}, components::{editor::editor::EditorWrapper, multi::draw::{self, paint::Paint}}, utils::inputs::Message};
 
 
 const TEXTAREA_ID: &str = "document-textarea";
@@ -16,6 +16,7 @@ pub enum Msg {
     UpdateValue(String),
     Tick,
     SwitchArea(AreaKind),
+    OpenPaint,
 }
 
 #[derive(PartialEq, Properties)]
@@ -75,6 +76,11 @@ impl Component for HostArea {
                 let message = Message::HostSwitchArea { message: area_kind };
                 self.send_message_to_all(message);
                 true
+            },
+            Msg::OpenPaint => {
+                let message = Message::OpenPaint;
+                self.send_message_to_all(message);
+                true
             }
         }
     }
@@ -128,18 +134,19 @@ impl Component for HostArea {
                 Msg::SwitchArea(AreaKind::TextArea)
             });
             let host_props = ctx.props().host_props.clone();
+            let send_message_all = self.send_message_all.clone();
             let paint_click = ctx.link().callback(move |_: MouseEvent| {
                 let area_kind = &host_props.borrow().host_area_kind;
                 match area_kind {
-                    AreaKind::Editor => {                        
-                        let _ = draw::paint::start(&host_props.borrow().host_editor_content);
+                    AreaKind::Editor => {           
+                        let _ = draw::paint::start(&host_props.borrow().host_editor_content, send_message_all.clone());
                     },
                     AreaKind::TextArea => {
-                        let _ = draw::paint::start(&host_props.borrow().host_area_content.content);
+                        let _ = draw::paint::start(&host_props.borrow().host_area_content.content, send_message_all.clone());
                     },
                 }
                 
-                Msg::Tick
+                Msg::OpenPaint
             });
             html! {
                 <>
@@ -163,6 +170,10 @@ impl Component for HostArea {
                     { render_batton_bar() }
                     <div class="row">
                         { render() }
+                        <Paint
+                            content={ "jfdkfjdkf" }
+                            send_message_all_cb={ self.send_message_all.clone() }
+                        />
                         <div id="host-host">
 
                         </div>

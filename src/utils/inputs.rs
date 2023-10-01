@@ -36,6 +36,11 @@ pub enum Message {
     HostSwitchVideo,
     HostSwitchArea {
         message: AreaKind
+    },
+    OpenPaint,
+    HostPaint {
+        offset_x: f64,
+        offset_y: f64,
     }
 }
 

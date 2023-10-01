@@ -31,3 +31,26 @@ impl TextAreaProps {
         self.placeholder = placeholder;
     }
 }
+
+#[derive(PartialEq)]
+pub struct PaintProps {
+    pub offset_x: f64,
+    pub offset_y: f64
+}
+
+impl PaintProps {
+    pub fn new() -> Self {
+        Self { 
+            offset_x: f64::default(),
+            offset_y: f64::default()
+        }
+    }
+
+    pub fn set_offset_x(&mut self, x: f64) {
+        self.offset_x = x;
+    }
+
+    pub fn set_offset_y(&mut self, y: f64) {
+        self.offset_y = y;
+    }
+}

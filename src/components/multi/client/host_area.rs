@@ -67,6 +67,9 @@ impl Component for HostArea {
             <>
                 <div class="col">
                     { render() }
+                    <div id="host-host">
+
+                    </div>
                 </div>
                 
             </>

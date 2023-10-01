@@ -2,8 +2,9 @@ use std::{rc::Rc, cell::RefCell, sync::Arc};
 
 use wasm_peers::{one_to_many::MiniClient, ConnectionType, SessionId};
 use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk};
+use yew::Callback;
 
-use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind}, utils::{ inputs::Message, device::{create_audio_decoder, create_video_decoder_video}, dom::on_visible_el}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper};
+use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind}, utils::{ inputs::Message, device::{create_audio_decoder, create_video_decoder_video}, dom::on_visible_el}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper, components::multi::draw::paint};
 
 
 pub struct ClientManager {
@@ -227,6 +228,24 @@ impl ClientManager {
                     } => {
                         host_props.borrow_mut().set_host_area_kind(message);
                         on_tick.borrow()();
+                    },
+                    Message::OpenPaint => {
+                        log::error!("open paint");
+                        match host_props.borrow().host_area_kind {
+                            AreaKind::Editor => {
+                                let _ = paint::start(&host_props.borrow().host_editor_content, Callback::default());
+                            },
+                            AreaKind::TextArea => {
+                                let _ = paint::start(&host_props.borrow().host_area_content.content, Callback::default());
+                            },
+                        }
+                        on_tick.borrow()();
+                    },
+                    Message::HostPaint { 
+                        offset_x,
+                        offset_y 
+                    } => {
+                        log::error!("{} {}", offset_x, offset_y);
                     }
                 }
             } 
