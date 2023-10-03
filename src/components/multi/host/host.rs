@@ -383,22 +383,27 @@ impl Component for Host {
         let screen_share_cb = ctx.link().callback(|_| Msg::EnableScreenShare(true)); 
         
         html! {
-            <div class="">
-                <div class="row">
+            <div class="container">
+                <div class="client-items">
                     { render_items() }
                 </div>
-                <div class="row">
-                    { render_client() }
-                    { render_host() }
-                    <div>
-                        <video class="client_canvas" autoplay=true id={VIDEO_ELEMENT_ID}></video>
+                <div class="host-content">
+                    <div class="content-item">
+                        { render_client() }
+                    </div>
+                    <div class="content-item">
+                        { render_host() }
                     </div>
                 </div>
-                       
+                <div class="host-video">
                 <DeviceSelector on_microphone_select={mic_callback} on_camera_select={cam_callback}/>
                 <div>
                     <button onclick={ screen_share_cb }>{"Демонстрация экрана"}</button>
                 </div>
+                    <video class="client_canvas" autoplay=true id={VIDEO_ELEMENT_ID}></video>
+                </div>
+                       
+                
                 
             </div>
         }

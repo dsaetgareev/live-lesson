@@ -232,7 +232,6 @@ impl ClientManager {
                         on_tick.borrow()();
                     },
                     Message::OpenPaint => {
-                        log::error!("open paint");
                         match host_props.borrow().host_area_kind {
                             AreaKind::Editor => {
                                 let canvas = paint::start(&host_props.borrow().host_editor_content, Callback::default())

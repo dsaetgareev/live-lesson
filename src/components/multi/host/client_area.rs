@@ -104,7 +104,7 @@ impl Component for ClientArea {
                 AreaKind::Editor => {
                     let is_write = &ctx.props().client_props.borrow().is_write;
                     html! {
-                        <div class="col document">
+                        <div class="document">
                             <EditorWrapper on_cb={ on_host_editor_cb.clone() } text_model={ text_model.clone() } is_write={ is_write }/>
                         </div>
                     }
@@ -133,10 +133,7 @@ impl Component for ClientArea {
        
         html! {
             <>
-                <div class="col">
-                    { render() }
-                </div>
-                
+                { render() }                
             </>
         }
     }

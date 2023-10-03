@@ -51,8 +51,7 @@ impl Component for Multi {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         
         html! {
-            <div class="px-3">
-                <p class="lead"> { "Share session id: " } <span class="line">{ &self.session_id }</span> </p>
+            <div class="main">
                 if self.is_host {
                     <Host />
                 } else {

@@ -65,9 +65,9 @@ impl Component for HostArea {
        
         html! {
             <>
-                <div class="col">
+                <div class="host-content-box">
                     { render() }
-                    <div id="host-host">
+                    <div id="host-paint" class="host-paint">
 
                     </div>
                 </div>

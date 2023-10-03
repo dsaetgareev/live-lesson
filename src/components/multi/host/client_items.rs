@@ -76,7 +76,7 @@ impl Component for ClientItems {
             let on_switch_video = ctx.link().callback(move |_|  Msg::SwitchVideo(video_switch_id.clone()));
             html! {
                     <>
-                        <div class="col-sm">
+                        <div class="item-box">
                             <div client_id={ client_id.clone() } class="col" onclick={ item_click.clone() }>
                                 <textarea id={ key } client_id={ client_id.clone() } value={ value } class="doc-item" cols="100" rows="30" />
                                 // <video id={ video_id } client_id={ client_id.clone() } autoplay=true class="item-canvas"></video>
@@ -123,9 +123,9 @@ impl Component for ClientItems {
         };
 
         html! {
-            <div class="row">
+            <>
                 { render() }
-            </div>
+            </>
         }
     }
 }

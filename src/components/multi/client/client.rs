@@ -253,47 +253,46 @@ impl Component for Client {
         };
 
         html! {
-            <main class="px-3">
-                <div id="container" class="client-container ">
-                    <div class="row">
-                        <div class="client_canvas col-3">
-                            <div>
-                                <button onclick={ on_video_btn }>
-                                    { 
-                                        if self.camera.get_enabled() {
-                                            html! { <Icon icon_id={IconId::BootstrapCameraVideoOffFill}/> }
-                                        } else {
-                                            html! { <Icon icon_id={IconId::BootstrapCameraVideoFill}/> }
-                                        }
+            <div id="container" class="container">
+                <div class="client-container">
+                    <div class=".content-item">
+                        <div>
+                            <button onclick={ on_video_btn }>
+                                { 
+                                    if self.camera.get_enabled() {
+                                        html! { <Icon icon_id={IconId::BootstrapCameraVideoOffFill}/> }
+                                    } else {
+                                        html! { <Icon icon_id={IconId::BootstrapCameraVideoFill}/> }
                                     }
-                                    
-                                </button>
-                            </div>
-                            <video class="client_canvas vis" autoplay=true id={VIDEO_ELEMENT_ID} poster="placeholder.png"></video>
-                            <div id="video-logo" class="unvis">
-                                <Icon icon_id={IconId::FontAwesomeSolidHorseHead}/>
-                            </div>
+                                }
+                                
+                            </button>
                         </div>
-                        <div class="col-3">
-                            { render_client_area() }
+                        <video class="client_canvas vis" autoplay=true id={VIDEO_ELEMENT_ID} poster="placeholder.png"></video>
+                        <div id="video-logo" class="unvis">
+                            <Icon icon_id={IconId::FontAwesomeSolidHorseHead}/>
                         </div>
-                        <div class="col">
-                            { render_host_area() }
-                            
-                        </div>
-                        <div class="col">                                             
-                            <video id="render" autoplay=true class="client_canvas"></video>
-                        </div>
+                    </div>
+                    <div class=".content-item">
+                        { render_client_area() }
+                    </div>
+                    <div class=".content-item">
+                        { render_host_area() }
                         
                     </div>
-                    <DeviceSelector on_microphone_select={mic_callback} on_camera_select={cam_callback}/>
+                    <div class=".content-item">                                             
+                        <video id="render" autoplay=true class="client_canvas"></video>
+                    </div>
                     
                 </div>
-                
+                <DeviceSelector on_microphone_select={mic_callback} on_camera_select={cam_callback}/>
+
                 <div id="shcreen_container" class="consumer unvis">
                     <video id="screen_share" autoplay=true class="screen_canvas"></video>
                 </div>
-            </main>
+                
+            </div>
+            
         }
     }
 }

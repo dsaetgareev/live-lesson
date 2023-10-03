@@ -95,7 +95,7 @@ impl Component for HostArea {
             match &ctx.props().host_props.clone().borrow().host_area_kind {
                 AreaKind::Editor => {
                     html! {
-                        <div class="col document">
+                        <div class="document">
                             <EditorWrapper on_cb={ on_host_editor_cb.clone() } text_model={ text_model.clone() } is_write={ true }/>
                         </div>
                     }
@@ -114,7 +114,7 @@ impl Component for HostArea {
                     let value = ctx.props().host_props.borrow().host_area_content.content.clone();
 
                     html! {
-                        <div class="col document">
+                        <div class="document">
                             <textarea id={ TEXTAREA_ID } value={ value } { oninput } class="document" cols="100" rows="30" />
                         </div>
                     }
@@ -166,16 +166,11 @@ impl Component for HostArea {
        
         html! {
             <>
-                <div class="col-3">
+                <div class="host-box">
                     { render_batton_bar() }
-                    <div class="row">
+                    <div class="host-content-box">
                         { render() }
-                        // <Paint
-                        //     content={ "jfdkfjdkf" }
-                        //     send_message_all_cb={ self.send_message_all.clone() }
-                        //     is_host={ true }
-                        // />
-                        <div id="host-host">
+                        <div id="host-paint" class="host-paint">
 
                         </div>
                     </div>

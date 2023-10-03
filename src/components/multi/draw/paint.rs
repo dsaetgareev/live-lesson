@@ -158,10 +158,10 @@ pub fn start(
     let canvas = document
         .create_element("canvas")?
         .dyn_into::<web_sys::HtmlCanvasElement>()?;
-    let div = utils::dom::get_element("host-host").unwrap();
+    let div = utils::dom::get_element("host-paint").unwrap();
     let _ = div.append_child(&canvas);
-    canvas.set_width(640);
-    canvas.set_height(480);
+    canvas.set_width(600);
+    canvas.set_height(500);
     canvas.set_class_name("paint");
     let context = canvas
         .get_context("2d")?
