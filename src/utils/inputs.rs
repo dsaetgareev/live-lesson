@@ -3,6 +3,13 @@ use serde::{Serialize, Deserialize};
 use crate::models::{packet::VideoPacket, commons::AreaKind};
 
 #[derive(Serialize, Deserialize)]
+pub enum PaintAction {
+    Down,
+    Move,
+    Up
+}
+
+#[derive(Serialize, Deserialize)]
 pub enum Message {
     Init {
         editor_content: String,
@@ -41,6 +48,7 @@ pub enum Message {
     HostPaint {
         offset_x: f64,
         offset_y: f64,
+        action: PaintAction,
     }
 }
 

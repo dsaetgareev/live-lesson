@@ -1,10 +1,11 @@
-use std::{rc::Rc, cell::RefCell, sync::Arc};
+use std::{rc::Rc, cell::RefCell, sync::Arc, collections::HashMap};
 
+use wasm_bindgen::JsCast;
 use wasm_peers::{one_to_many::MiniClient, ConnectionType, SessionId};
-use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk};
+use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk, HtmlCanvasElement};
 use yew::Callback;
 
-use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind}, utils::{ inputs::Message, device::{create_audio_decoder, create_video_decoder_video}, dom::on_visible_el}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper, components::multi::draw::paint};
+use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind}, utils::{ inputs::{Message, PaintAction}, device::{create_audio_decoder, create_video_decoder_video}, dom::on_visible_el}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper, components::multi::draw::paint};
 
 
 pub struct ClientManager {
@@ -70,6 +71,7 @@ impl ClientManager {
         let screen_share_decoder = create_video_decoder_video("screen_share".to_owned());
         let audio = create_audio_decoder();
         let on_tick = on_tick.clone();
+        let mut paints: HashMap<i32, Rc<HtmlCanvasElement>> = HashMap::new();
         let on_message_callback = {
             let _aes = Arc::new(Aes128State::new(true));
             let mut video = video.clone();
@@ -233,19 +235,49 @@ impl ClientManager {
                         log::error!("open paint");
                         match host_props.borrow().host_area_kind {
                             AreaKind::Editor => {
-                                let _ = paint::start(&host_props.borrow().host_editor_content, Callback::default());
+                                let canvas = paint::start(&host_props.borrow().host_editor_content, Callback::default())
+                                    .expect("cannot get canvas");
+                                paints.insert(1, canvas);
                             },
                             AreaKind::TextArea => {
-                                let _ = paint::start(&host_props.borrow().host_area_content.content, Callback::default());
+                                let canvas = paint::start(&host_props.borrow().host_area_content.content, Callback::default())
+                                    .expect("cannot get canvas");
+                                paints.insert(1, canvas);
                             },
                         }
                         on_tick.borrow()();
                     },
                     Message::HostPaint { 
                         offset_x,
-                        offset_y 
+                        offset_y,
+                        action,
                     } => {
-                        log::error!("{} {}", offset_x, offset_y);
+                        let key = 1;
+                        let canvas = paints.get(&key).expect("cannot get canvas");
+                        let context = canvas
+                            .get_context("2d")
+                            .expect("cannot get canvas")
+                            .unwrap()
+                            .dyn_into::<web_sys::CanvasRenderingContext2d>()
+                            .expect("cannot get canvas");
+                        match action {
+                            PaintAction::Down => {
+                                context.begin_path();
+                                context.move_to(offset_x, offset_y);
+                            },
+                            PaintAction::Move => {
+                                context.line_to(offset_x, offset_y);
+                                context.stroke();
+                                context.begin_path();
+                                context.move_to(offset_x, offset_y);
+                            },
+                            PaintAction::Up => {
+                                context.line_to(offset_x, offset_y);
+                                context.stroke();
+                            },
+                        };
+                        
+
                     }
                 }
             } 

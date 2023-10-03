@@ -170,10 +170,11 @@ impl Component for HostArea {
                     { render_batton_bar() }
                     <div class="row">
                         { render() }
-                        <Paint
-                            content={ "jfdkfjdkf" }
-                            send_message_all_cb={ self.send_message_all.clone() }
-                        />
+                        // <Paint
+                        //     content={ "jfdkfjdkf" }
+                        //     send_message_all_cb={ self.send_message_all.clone() }
+                        //     is_host={ true }
+                        // />
                         <div id="host-host">
 
                         </div>

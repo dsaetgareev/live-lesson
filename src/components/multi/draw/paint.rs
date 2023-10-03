@@ -5,7 +5,7 @@ use web_sys::HtmlCanvasElement;
 use yew::{Callback, Component, Properties, NodeRef, html};
 
 use crate::utils;
-use crate::utils::inputs::Message;
+use crate::utils::inputs::{Message, PaintAction};
 
 pub enum Msg {
 
@@ -17,12 +17,14 @@ pub struct CurrentProps {
     pub content: String,
     #[prop_or_default]
     pub send_message_all_cb: Callback<Message>,
+    pub is_host: bool
 }
 
 
 pub struct Paint {
     canvas: NodeRef,
     send_message_all_cb: Callback<Message>,
+    is_host: bool
 }
 
 impl Paint {
@@ -74,7 +76,11 @@ impl Paint {
                     context.begin_path();
                     context.move_to(event.offset_x() as f64, event.offset_y() as f64);
                     send_message_to_all.emit(
-                        Message::HostPaint { offset_x: event.offset_x() as f64, offset_y: event.offset_y() as f64 }
+                        Message::HostPaint { 
+                            offset_x: event.offset_x() as f64,
+                            offset_y: event.offset_y() as f64,
+                            action: PaintAction::Move
+                         }
                     )
                 }
             }) as Box<dyn FnMut(_)>);
@@ -102,7 +108,8 @@ impl Component for Paint {
     fn create(ctx: &yew::Context<Self>) -> Self {
         Self { 
             canvas: NodeRef::default(),
-            send_message_all_cb: ctx.props().send_message_all_cb.clone()
+            send_message_all_cb: ctx.props().send_message_all_cb.clone(),
+            is_host: ctx.props().is_host,
         }
     }
 
@@ -126,7 +133,10 @@ impl Component for Paint {
             
             context.set_font("20px Arial");
             draw_content(&ctx.props().content, &context);
-            self.host_action();
+            if self.is_host {
+              self.host_action();  
+            }
+            
         }
     }
 
@@ -139,11 +149,11 @@ impl Component for Paint {
     }
 }
 
-// #[wasm_bindgen(start)]
+
 pub fn start(
     content: &str,
     send_message_all_cb: Callback<Message>
-) -> Result<(), JsValue> {
+) -> Result<Rc<HtmlCanvasElement>, JsValue> {
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document
         .create_element("canvas")?
@@ -161,7 +171,7 @@ pub fn start(
     context.set_font("20px Arial");
     draw_content(content, &context);
     host_action(&canvas, context, send_message_all_cb);
-    Ok(())
+    Ok(Rc::new(canvas))
 }
 
 fn draw_content(content: &str, context: &web_sys::CanvasRenderingContext2d) {
@@ -180,10 +190,18 @@ fn host_action(canvas: &web_sys::HtmlCanvasElement, context: web_sys::CanvasRend
     {
         let context = context.clone();
         let pressed = pressed.clone();
+        let send_message_all_cb = send_message_all_cb.clone();
         let closure = Closure::<dyn FnMut(_)>::new(move |event: web_sys::MouseEvent| {
             context.begin_path();
             context.move_to(event.offset_x() as f64, event.offset_y() as f64);
             pressed.set(true);
+            send_message_all_cb.emit(
+                Message::HostPaint { 
+                    offset_x: event.offset_x() as f64,
+                    offset_y: event.offset_y() as f64,
+                    action: PaintAction::Down
+                 }
+            )
         });
         canvas.add_event_listener_with_callback("mousedown", closure.as_ref().unchecked_ref()).expect("error add event listener paint mousedown");
         closure.forget();
@@ -191,6 +209,7 @@ fn host_action(canvas: &web_sys::HtmlCanvasElement, context: web_sys::CanvasRend
     {
         let context = context.clone();
         let pressed = pressed.clone();
+        let send_message_all_cb = send_message_all_cb.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             if pressed.get() {
                 context.line_to(event.offset_x() as f64, event.offset_y() as f64);
@@ -198,7 +217,11 @@ fn host_action(canvas: &web_sys::HtmlCanvasElement, context: web_sys::CanvasRend
                 context.begin_path();
                 context.move_to(event.offset_x() as f64, event.offset_y() as f64);
                 send_message_all_cb.emit(
-                    Message::HostPaint { offset_x: event.offset_x() as f64, offset_y: event.offset_y() as f64 }
+                    Message::HostPaint { 
+                        offset_x: event.offset_x() as f64,
+                        offset_y: event.offset_y() as f64,
+                        action: PaintAction::Move
+                     }
                 )
             }
         }) as Box<dyn FnMut(_)>);
@@ -207,10 +230,18 @@ fn host_action(canvas: &web_sys::HtmlCanvasElement, context: web_sys::CanvasRend
     }
     {
         let context = context.clone();
+        let send_message_all_cb = send_message_all_cb.clone();
         let closure = Closure::<dyn FnMut(_)>::new(move |event: web_sys::MouseEvent| {
             context.line_to(event.offset_x() as f64, event.offset_y() as f64);
             context.stroke();
             pressed.set(false);
+            send_message_all_cb.emit(
+                Message::HostPaint { 
+                    offset_x: event.offset_x() as f64,
+                    offset_y: event.offset_y() as f64,
+                    action: PaintAction::Up
+                 }
+            )
         });
         canvas.add_event_listener_with_callback("mouseup", closure.as_ref().unchecked_ref()).expect("error add event listener paint mouseup");
         closure.forget();
@@ -243,7 +274,11 @@ fn client_action(canvas: &web_sys::HtmlCanvasElement, context: web_sys::CanvasRe
                 context.begin_path();
                 context.move_to(event.offset_x() as f64, event.offset_y() as f64);
                 send_message_all_cb.emit(
-                    Message::HostPaint { offset_x: event.offset_x() as f64, offset_y: event.offset_y() as f64 }
+                    Message::HostPaint { 
+                        offset_x: event.offset_x() as f64,
+                        offset_y: event.offset_y() as f64,
+                        action: PaintAction::Move
+                    }
                 )
             }
         }) as Box<dyn FnMut(_)>);

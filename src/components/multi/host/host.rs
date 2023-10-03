@@ -383,7 +383,7 @@ impl Component for Host {
         let screen_share_cb = ctx.link().callback(|_| Msg::EnableScreenShare(true)); 
         
         html! {
-            <main class="">
+            <div class="">
                 <div class="row">
                     { render_items() }
                 </div>
@@ -400,7 +400,7 @@ impl Component for Host {
                     <button onclick={ screen_share_cb }>{"Демонстрация экрана"}</button>
                 </div>
                 
-            </main>
+            </div>
         }
     }
 
