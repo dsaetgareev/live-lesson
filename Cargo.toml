@@ -119,3 +119,7 @@ yew_icons = {version = "0.7", features = [
     "FontAwesomeSolidHorseHead",
     "HeroiconsSolidPaintBrush"
     ]}
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
