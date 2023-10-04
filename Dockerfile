@@ -1,5 +1,5 @@
 # docker build -t 172.24.17.214:5000/live-lesson:v1 .
-FROM rust:slim-bookworm
+FROM rust:1.72
 
 # Add wasm target
 RUN rustup target add wasm32-unknown-unknown 
@@ -19,4 +19,4 @@ COPY . .
 
 EXPOSE 8080
 
-CMD [ "/bin/bash", "-c", "trunk serve --address 0.0.0.0 --port 8080" ]
+CMD ["trunk", "serve", "--release", "--address", "0.0.0.0"]
