@@ -6,7 +6,9 @@ use yew::{Component, Context, html, Html};
 use log::error;
 
 use crate::components::multi::client::client::Client;
+use crate::components::multi::client::welcome::Welcome;
 use crate::components::multi::host::host::Host;
+use crate::components::multi::host::welcome::WelcomeHost;
 use crate::utils::dom::global_window;
 use crate::utils;
 
@@ -53,9 +55,9 @@ impl Component for Multi {
         html! {
             <div class="main">
                 if self.is_host {
-                    <Host />
+                    <WelcomeHost />
                 } else {
-                    <Client />
+                    <Welcome />
                 }
             </div>
         }

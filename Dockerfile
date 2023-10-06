@@ -19,4 +19,4 @@ COPY . .
 
 EXPOSE 8080
 
-CMD ["trunk", "serve", "--release", "--address", "0.0.0.0"]
+CMD [ "/bin/bash", "-c", "trunk serve --address 0.0.0.0 --port 8080" ]

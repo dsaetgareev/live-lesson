@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::Arc, cmp::Ordering};
 use js_sys::Uint8Array;
 use web_sys::{ VideoDecoder, VideoDecoderConfig, EncodedVideoChunk, EncodedVideoChunkInit, EncodedVideoChunkType};
 
-use crate::wrappers::EncodedVideoChunkTypeWrapper;
+use crate::{wrappers::EncodedVideoChunkTypeWrapper, utils::device::create_video_decoder_frame};
 
 use super::packet::VideoPacket;
 
@@ -121,6 +121,7 @@ impl Video {
             },
             web_sys::CodecState::Closed => {
                 log::info!("video decoder closed");
+                self.video_decoder.configure(&self.video_config);
                 // decoders.as_ref().borrow_mut().insert(
                 //     user_id, 
                 //     Rc::new(RefCell::new(create_video_decoder_frame(video.render_id.clone()))));

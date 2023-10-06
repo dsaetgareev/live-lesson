@@ -1,9 +1,14 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use serde::{Deserialize, Serialize};
 use wasm_peers::get_random_session_id;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::components::document::document::Query;
+use crate::models::audio::Audio;
+use crate::utils::device::create_audio_decoder;
 use crate::utils::dom::get_input;
 use crate::Route;
 
@@ -108,35 +113,34 @@ impl Component for Home {
                 <div class="cover-container d-flex w-100 h-100 p-3 mx-auto flex-column">
                     <header class="mb-auto">
                         <div>
-                            <h3 class="float-md-start mb-0">{ "Live Document" }</h3>
+                            <h3 class="float-md-start mb-0">{ "Live Lesson"  }</h3>
                         </div>
                     </header>
 
                     <main class="px-3">
-                        <h1>{ "Live Lesson" }</h1>
                         <hr />
                         <p class="lead">{ "Создайте документ" }</p>
                         <p class="lead">
-                            <button onclick={ start_as_host_text_document } class="btn btn-lg btn-secondary fw-bold border-white bg-white">
+                            <button onclick={ start_as_host_text_document } class="btn btn-lg btn-secondary fw-bold border-white">
                                 { "Текстовый документ" }
                             </button>
                         </p>
                         <p class="lead">
-                            <button onclick={ start_as_host_table_document } class="btn btn-lg btn-secondary fw-bold border-white bg-white">
+                            <button onclick={ start_as_host_table_document } class="btn btn-lg btn-secondary fw-bold border-white">
                                 { "Таблица" }
                             </button>
                         </p>
                         <p class="lead">
-                            <button onclick={ start_as_host_multi_document } class="btn btn-lg btn-secondary fw-bold border-white bg-white">
+                            <button onclick={ start_as_host_multi_document } class="btn btn-lg btn-secondary fw-bold border-white">
                                 { "Мультидокумент" }
                             </button>
                         </p>
                         <p class="lead">{ "или подключитесь к существующему документу" }</p>
                         <p class="lead">
-                        <input id="join-input"
-                            placeholder={ "Session id " }
-                            oninput={ update_input }
-                        />
+                            <input id="join-input"
+                                placeholder={ "Session id " }
+                                oninput={ update_input }
+                            />
                         </p>
                         
                     </main>

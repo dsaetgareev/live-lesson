@@ -5,15 +5,19 @@ use wasm_peers::{one_to_many::MiniClient, ConnectionType, SessionId};
 use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk, HtmlCanvasElement};
 use yew::Callback;
 
-use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind}, utils::{ inputs::{Message, PaintAction}, device::{create_audio_decoder, create_video_decoder_video}, dom::on_visible_el}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper, components::multi::draw::paint};
+use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind, audio::{self, Audio}}, utils::{ inputs::{Message, PaintAction}, device::{create_audio_decoder, create_video_decoder_video}, dom::on_visible_el}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper, components::multi::draw::paint};
 
 
 pub struct ClientManager {
-    pub mini_client: MiniClient
+    pub mini_client: MiniClient,
+    pub audio: Rc<RefCell<Audio>>
 }
 
 impl ClientManager {
-    pub fn new(session_id: SessionId) -> Self {
+    pub fn new(
+        session_id: SessionId,
+        audio: Rc<RefCell<Audio>>
+    ) -> Self {
         let connection_type = ConnectionType::StunAndTurn {
             stun_urls: env!("STUN_SERVER_URLS").to_string(),
             turn_urls: env!("TURN_SERVER_URLS").to_string(),
@@ -23,8 +27,10 @@ impl ClientManager {
         let signaling_server_url = concat!(env!("SIGNALING_SERVER_URL"), "/one-to-many");
         let mini_client = MiniClient::new(signaling_server_url, session_id, connection_type)
             .expect("failed to create network manager");
+        // let audio = Rc::new(RefCell::new(create_audio_decoder()));
         Self { 
-            mini_client
+            mini_client,
+            audio
         }
     }
 
@@ -69,14 +75,15 @@ impl ClientManager {
 
         let video = create_video_decoder_video("render".to_owned());
         let screen_share_decoder = create_video_decoder_video("screen_share".to_owned());
-        let audio = create_audio_decoder();
+        
         let on_tick = on_tick.clone();
         let mut paints: HashMap<i32, Rc<HtmlCanvasElement>> = HashMap::new();
+        let audio = self.audio.clone();
         let on_message_callback = {
             let _aes = Arc::new(Aes128State::new(true));
             let mut video = video.clone();
             let mut screen_share_decoder = screen_share_decoder.clone();
-            let mut audio = audio.clone();
+            let audio = audio.clone();
             let host_props = host_props.clone();
             move |message: Message| {
                 match message {
@@ -182,9 +189,9 @@ impl ClientManager {
                         chunk_type,
                         timestamp,
                         duration
-                    } => {     
-                        if audio.on_speakers {
-                            let _ = audio.audio_context.resume();
+                    } => {
+                        // let _ = audio.borrow().audio_context.resume();
+                        if audio.borrow().on_speakers {
                             let chunk_type = EncodedAudioChunkTypeWrapper::from(chunk_type).0;
                             let audio_data = &message;
                             let audio_data_js: js_sys::Uint8Array =
@@ -196,12 +203,12 @@ impl ClientManager {
                             audio_chunk_init.duration(duration);
                             let encoded_audio_chunk = EncodedAudioChunk::new(&audio_chunk_init).unwrap();
 
-                            match audio.audio_decoder.state() {
+                            match audio.borrow().audio_decoder.state() {
                                 web_sys::CodecState::Unconfigured => {
                                     log::info!("audio decoder unconfigured");
                                 },
                                 web_sys::CodecState::Configured => {
-                                    audio.audio_decoder.decode(&encoded_audio_chunk);
+                                    audio.borrow().audio_decoder.decode(&encoded_audio_chunk);
                                 },
                                 web_sys::CodecState::Closed => {
                                     log::info!("audio_decoder closed");
@@ -212,7 +219,7 @@ impl ClientManager {
                         
                     },
                     Message::HostSwitchAudio => {
-                        audio.on_speakers = !audio.on_speakers;
+                        audio.borrow_mut().on_speakers = !audio.borrow().on_speakers;
                     },
                     Message::HostSwitchVideo => {
                         video.video_start = !video.video_start;
@@ -282,7 +289,6 @@ impl ClientManager {
             } 
         
         };
-        
         self.mini_client.start(on_open_callback, on_message_callback);
     }
 }

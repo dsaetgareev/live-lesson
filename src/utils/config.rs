@@ -17,7 +17,6 @@ pub struct Config {
 pub fn configure_audio_context(
     audio_stream_generator: &MediaStreamTrackGenerator,
 ) -> anyhow::Result<(AudioContext, GainNode)> {
-    // let _ = get_local_audio_context();
     let js_tracks = Array::new();
     js_tracks.push(audio_stream_generator);
     let media_stream = MediaStream::new_with_tracks(&js_tracks).unwrap();

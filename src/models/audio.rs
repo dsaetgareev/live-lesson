@@ -1,7 +1,8 @@
 use web_sys::{AudioContext, GainNode, AudioDecoder};
+use yew::Properties;
 
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Properties)]
 pub struct Audio {
     pub audio_context: AudioContext,
     pub gain_node: GainNode,

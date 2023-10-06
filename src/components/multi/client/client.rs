@@ -4,7 +4,8 @@ use std::str::FromStr;
 use gloo_timers::callback::Timeout;
 use wasm_peers::one_to_many::MiniClient;
 use wasm_peers::{get_random_session_id, SessionId};
-use yew::{html, Component, Context, Html, Callback};
+use web_sys::MouseEvent;
+use yew::{html, Component, Context, Html, Callback, Properties};
 use log::error;
 use yew_icons::{Icon, IconId};
 
@@ -12,9 +13,11 @@ use crate::components::multi::client::client_area::ClientArea;
 use crate::components::multi::client::host_area::HostArea;
 use crate::encoders::camera_encoder::CameraEncoder;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
+use crate::models::audio::{Audio, self};
 use crate::models::client::ClientProps;
 use crate::models::host::HostPorps;
 use crate::models::packet::VideoPacket;
+use crate::utils::device::create_audio_decoder;
 use crate::utils::dom::on_visible_el;
 use crate::utils::inputs::ClientMessage;
 use crate::utils;
@@ -24,6 +27,11 @@ use crate::media_devices::device_selector::DeviceSelector;
 use super::client_manager::ClientManager;
 
 const VIDEO_ELEMENT_ID: &str = "webcam";
+
+// #[derive(PartialEq, Properties)]
+// pub struct ClientCmpPorps {
+//     pub audio: Rc<RefCell<Audio>>,
+// }
 
 pub enum Msg {
     Init,
@@ -43,6 +51,7 @@ pub struct Client {
     client_props: Rc<RefCell<ClientProps>>,
     camera: CameraEncoder,
     microphone: MicrophoneEncoder,
+    audio: Rc<RefCell<Audio>>,
 }
 
 impl Client {
@@ -85,6 +94,7 @@ impl Component for Client {
                 }
             };
         ctx.link().send_message(Msg::Init);
+        let audio = Rc::new(RefCell::new(create_audio_decoder()));
         Self {
             session_id,
             client_manager: None,
@@ -92,6 +102,7 @@ impl Component for Client {
             client_props: Rc::new(RefCell::new(ClientProps::new(String::default(), String::default()))),
             camera: CameraEncoder::new(),
             microphone: MicrophoneEncoder::new(),
+            audio,
         }
     }
 
@@ -102,11 +113,13 @@ impl Component for Client {
                 let on_tick = move || {
                     link.send_message(Msg::Tick)
                 };
+                
                 self.client_manager = Some(init(
                     self.session_id.clone(),
                     on_tick,
                     self.host_props.clone(),
                     self.client_props.clone(),
+                    self.audio.clone(),
                 ));
                 true
             },
@@ -295,6 +308,13 @@ impl Component for Client {
             
         }
     }
+
+
+
+    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+        
+    }
+
 }
 
 fn init(
@@ -302,9 +322,10 @@ fn init(
     on_tick: impl Fn() + 'static,
     host_content: Rc<RefCell<HostPorps>>,
     client_props: Rc<RefCell<ClientProps>>,
+    audio: Rc<RefCell<Audio>>,
 ) -> ClientManager {
 
-    let mut host_manager = ClientManager::new(session_id);
-    host_manager.init(on_tick, host_content, client_props);
-    host_manager
+    let mut client_manager = ClientManager::new(session_id, audio);
+    client_manager.init(on_tick, host_content, client_props);
+    client_manager
 }
