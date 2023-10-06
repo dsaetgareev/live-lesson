@@ -45,8 +45,7 @@ impl HostManager {
             let decoders = self.decoders.clone();
             let audio_decoders = self.audio_decoders.clone();
             let on_tick = on_tick.clone();
-            move |user_id| {
-               
+            move |user_id: UserId| {
                 let editor_content = &host_props.borrow().host_editor_content;
                 let text_area_content = &host_props.borrow().host_area_content.content;
                 let area_kind = host_props.borrow().host_area_kind;
@@ -87,21 +86,18 @@ impl HostManager {
                         let _ = video.decode_break(Arc::new(message));
                     },
                     ClientMessage::ClientAudio { 
-                        message,
-                        chunk_type,
-                        timestamp,
-                        duration
+                        packet
                     } => {
                         let audio = audio_decoders.as_ref().borrow().get(&user_id).unwrap().clone();
-                        let chunk_type = EncodedAudioChunkTypeWrapper::from(chunk_type).0;
-                        let audio_data = &message;
+                        let chunk_type = EncodedAudioChunkTypeWrapper::from(packet.chunk_type).0;
+                        let audio_data = &packet.message;
                         let audio_data_js: js_sys::Uint8Array =
                             js_sys::Uint8Array::new_with_length(audio_data.len() as u32);
                         audio_data_js.copy_from(audio_data.as_slice());
                         let chunk_type = EncodedAudioChunkTypeWrapper(chunk_type);
                         let mut audio_chunk_init =
-                            EncodedAudioChunkInit::new(&audio_data_js.into(), timestamp, chunk_type.0);
-                        audio_chunk_init.duration(duration);
+                            EncodedAudioChunkInit::new(&audio_data_js.into(), packet.timestamp, chunk_type.0);
+                        audio_chunk_init.duration(packet.duration);
                         let encoded_audio_chunk = EncodedAudioChunk::new(&audio_chunk_init).unwrap();
                         let state = audio.borrow().audio_decoder.state();
                         match state {

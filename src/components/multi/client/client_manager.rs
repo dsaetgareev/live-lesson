@@ -1,16 +1,18 @@
 use std::{rc::Rc, cell::RefCell, sync::Arc, collections::HashMap};
 
 use wasm_bindgen::JsCast;
-use wasm_peers::{one_to_many::MiniClient, ConnectionType, SessionId};
+use wasm_peers::{one_to_many::MiniClient, ConnectionType, SessionId, many_to_many::NetworkManager, UserId};
 use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk, HtmlCanvasElement};
 use yew::Callback;
 
-use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind, audio::{self, Audio}}, utils::{ inputs::{Message, PaintAction}, device::{create_audio_decoder, create_video_decoder_video}, dom::on_visible_el}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper, components::multi::draw::paint};
+use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind, audio::{self, Audio}}, utils::{ inputs::{Message, PaintAction, ManyMassage}, device::{create_audio_decoder, create_video_decoder_video}, dom::on_visible_el}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper, components::multi::draw::paint};
 
 
 pub struct ClientManager {
     pub mini_client: MiniClient,
-    pub audio: Rc<RefCell<Audio>>
+    pub audio: Rc<RefCell<Audio>>,
+    pub network_manager: NetworkManager,
+    pub audio_decoders: Rc<RefCell<HashMap<UserId, Rc<RefCell<Audio>>>>>,
 }
 
 impl ClientManager {
@@ -25,12 +27,20 @@ impl ClientManager {
             credential: env!("TURN_SERVER_CREDENTIAL").to_string(),
         };
         let signaling_server_url = concat!(env!("SIGNALING_SERVER_URL"), "/one-to-many");
-        let mini_client = MiniClient::new(signaling_server_url, session_id, connection_type)
-            .expect("failed to create network manager");
-        // let audio = Rc::new(RefCell::new(create_audio_decoder()));
+        let mini_client = MiniClient::new(signaling_server_url, session_id, connection_type.clone())
+            .expect("failed to create mini client");
+        let network_manager = NetworkManager::new(
+            concat!(env!("SIGNALING_SERVER_URL"), "/many-to-many"),
+            session_id.clone(),
+            connection_type,
+        )
+        .expect("failed to create network manager");
+        let audio_decoders = Rc::new(RefCell::new(HashMap::new()));
         Self { 
             mini_client,
-            audio
+            audio,
+            network_manager,
+            audio_decoders,
         }
     }
 
@@ -190,7 +200,6 @@ impl ClientManager {
                         timestamp,
                         duration
                     } => {
-                        // let _ = audio.borrow().audio_context.resume();
                         if audio.borrow().on_speakers {
                             let chunk_type = EncodedAudioChunkTypeWrapper::from(chunk_type).0;
                             let audio_data = &message;
@@ -290,5 +299,56 @@ impl ClientManager {
         
         };
         self.mini_client.start(on_open_callback, on_message_callback);
+    }
+
+    pub fn many_init(&mut self) {
+        let audio_decoders = self.audio_decoders.clone();
+        let on_open_callback = {
+            
+            move |user_id: UserId| {
+                audio_decoders.as_ref().borrow_mut().insert(user_id, Rc::new(RefCell::new(create_audio_decoder())));
+            }
+        };
+
+        let on_message_callback = {
+            let _aes = Arc::new(Aes128State::new(true));
+            let audio_decoders = self.audio_decoders.clone();
+            move |user_id: UserId, message: ManyMassage| {
+                match message {
+                    ManyMassage::Audio { 
+                        packet
+                    } => {
+                        let audio = audio_decoders.as_ref().borrow().get(&user_id).unwrap().clone();
+                        if audio.borrow().on_speakers {
+                            let chunk_type = EncodedAudioChunkTypeWrapper::from(packet.chunk_type).0;
+                            let audio_data = &packet.message;
+                            let audio_data_js: js_sys::Uint8Array =
+                                js_sys::Uint8Array::new_with_length(audio_data.len() as u32);
+                            audio_data_js.copy_from(audio_data.as_slice());
+                            let chunk_type = EncodedAudioChunkTypeWrapper(chunk_type);
+                            let mut audio_chunk_init =
+                                EncodedAudioChunkInit::new(&audio_data_js.into(), packet.timestamp, chunk_type.0);
+                            audio_chunk_init.duration(packet.duration);
+                            let encoded_audio_chunk = EncodedAudioChunk::new(&audio_chunk_init).unwrap();
+
+                            match audio.borrow().audio_decoder.state() {
+                                web_sys::CodecState::Unconfigured => {
+                                    log::info!("audio decoder unconfigured");
+                                },
+                                web_sys::CodecState::Configured => {
+                                    audio.borrow().audio_decoder.decode(&encoded_audio_chunk);
+                                },
+                                web_sys::CodecState::Closed => {
+                                    log::info!("audio_decoder closed");
+                                },
+                                _ => {}
+                            }    
+                        }
+                    },
+                }
+            } 
+        
+        };
+        self.network_manager.start(on_open_callback, on_message_callback);
     }
 }

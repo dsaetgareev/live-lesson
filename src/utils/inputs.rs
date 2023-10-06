@@ -52,6 +52,14 @@ pub enum Message {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AudioPacket {
+    pub message: Vec<u8>,
+    pub chunk_type: String,
+    pub timestamp: f64,
+    pub duration: f64,
+}
+
 #[derive(Serialize, Deserialize)]
 pub enum ClientMessage {
     ClientText {
@@ -62,10 +70,7 @@ pub enum ClientMessage {
         message: VideoPacket
     },
     ClientAudio {
-        message: Vec<u8>,
-        chunk_type: String,
-        timestamp: f64,
-        duration: f64,
+        packet: AudioPacket
     },
     ClientSwitchVideo {
         message: bool
@@ -77,4 +82,11 @@ pub enum ClientMessage {
     ClientSwitchArea {
         message: AreaKind,
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum ManyMassage {
+    Audio {
+        packet: AudioPacket
+    },
 }

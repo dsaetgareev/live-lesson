@@ -19,7 +19,7 @@ use crate::models::host::HostPorps;
 use crate::models::packet::VideoPacket;
 use crate::utils::device::create_audio_decoder;
 use crate::utils::dom::on_visible_el;
-use crate::utils::inputs::ClientMessage;
+use crate::utils::inputs::{ClientMessage, ManyMassage, AudioPacket};
 use crate::utils;
 use crate::wrappers::EncodedAudioChunkTypeWrapper;
 use crate::media_devices::device_selector::DeviceSelector;
@@ -199,6 +199,7 @@ impl Component for Client {
                 }
 
                 let ms = self.client_manager.as_mut().unwrap().mini_client.clone();
+                let nm = self.client_manager.as_mut().unwrap().network_manager.clone();
                 let on_audio = move |chunk: web_sys::EncodedAudioChunk| {
                     let duration = chunk.duration().unwrap();
                     let mut buffer: [u8; 100000] = [0; 100000];
@@ -210,13 +211,20 @@ impl Component for Client {
 
                     let chunk_type = EncodedAudioChunkTypeWrapper(chunk.type_()).to_string();
                     let timestamp = chunk.timestamp();
-                    let message = ClientMessage::ClientAudio { 
+                    let audio_packet = AudioPacket {
                         message: data,
                         chunk_type,
                         timestamp,
                         duration
                     };
-                    let _ = ms.send_message_to_host(&message);            
+                    let message = ClientMessage::ClientAudio { 
+                        packet: audio_packet.clone()
+                    };
+                    let _ = ms.send_message_to_host(&message);
+                    let message = ManyMassage::Audio { 
+                        packet: audio_packet
+                    };
+                    let _ = nm.send_message_to_all(&message);            
                 };
                 self.microphone.start(
                     on_audio
@@ -327,5 +335,6 @@ fn init(
 
     let mut client_manager = ClientManager::new(session_id, audio);
     client_manager.init(on_tick, host_content, client_props);
+    client_manager.many_init();
     client_manager
 }
