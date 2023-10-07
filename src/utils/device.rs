@@ -10,6 +10,7 @@ use crate::{constants::{VIDEO_CODEC, AUDIO_CHANNELS, AUDIO_CODEC, AUDIO_SAMPLE_R
 
 use super::{dom::{get_window, get_document, get_element}, config::configure_audio_context};
 
+#[derive(Clone)]
 pub enum VideoElementKind {
     ClentBox,
     ReadyId,
@@ -66,7 +67,7 @@ pub fn create_video_decoder(render_id: String) -> Video {
     output.forget();
     let video_config = VideoDecoderConfig::new(&VIDEO_CODEC);
     local_video_decoder.configure(&video_config);
-    Video::new(local_video_decoder, video_config, ren_id)
+    Video::new(local_video_decoder, video_config, ren_id, VideoElementKind::ReadyId)
 }
 
 
@@ -128,7 +129,7 @@ pub fn create_video_decoder_frame(render_id: String) -> Video {
     output.forget();
     let video_config = VideoDecoderConfig::new(&VIDEO_CODEC);
     local_video_decoder.configure(&video_config);
-    Video::new(local_video_decoder, video_config, ren_id)
+    Video::new(local_video_decoder, video_config, ren_id, VideoElementKind::ReadyId)
 }
 
 pub fn create_video_decoder_video(video_elem_id: String, el_kind: VideoElementKind) -> Video {
@@ -145,7 +146,7 @@ pub fn create_video_decoder_video(video_elem_id: String, el_kind: VideoElementKi
     let js_tracks = Array::new();
     js_tracks.push(&video_stream_generator);
     let media_stream = MediaStream::new_with_tracks(&js_tracks).unwrap();
-    let video_element = create_video_element(video_elem_id, el_kind);
+    let video_element = create_video_element(video_elem_id, el_kind.clone());
     let output = Closure::wrap(Box::new(move |original_chunk: JsValue| {
         let chunk = Box::new(original_chunk);
         let video_chunk = chunk.clone().unchecked_into::<HtmlVideoElement>();
@@ -186,7 +187,7 @@ pub fn create_video_decoder_video(video_elem_id: String, el_kind: VideoElementKi
     output.forget();
     let video_config = VideoDecoderConfig::new(&VIDEO_CODEC); 
     local_video_decoder.configure(&video_config);
-    Video::new(local_video_decoder, video_config, r_id)
+    Video::new(local_video_decoder, video_config, r_id, el_kind)
 }
 
 fn create_video_element(video_elem_id: String, el_kind: VideoElementKind) -> HtmlVideoElement {

@@ -157,7 +157,7 @@ impl ClientManager {
                                     log::info!("video decoder unconfigured");
                                 },
                                 web_sys::CodecState::Configured => {
-                                    if let Err(err) = video.decode(Arc::new(message)) {
+                                    if let Err(err) = video.decode_break(Arc::new(message)) {
                                         log::error!("error on decode {}", err);
                                     }
                                 },
@@ -347,7 +347,7 @@ impl ClientManager {
                     } => {
                         let video = video_decoders.as_ref().borrow().get(&user_id).unwrap().clone();
                         let mut video = video.as_ref().borrow_mut();
-                        let _ = video.decode(Arc::new(packet));
+                        let _ = video.decode_break(Arc::new(packet));
                     }
                 }
             } 

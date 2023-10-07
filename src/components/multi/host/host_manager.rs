@@ -82,7 +82,7 @@ impl HostManager {
                     } => {
                         let video = decoders.as_ref().borrow().get(&user_id).unwrap().clone();
                         let mut video = video.as_ref().borrow_mut();
-                        let _ = video.decode(Arc::new(message));
+                        let _ = video.decode_break(Arc::new(message));
                     },
                     ClientMessage::ClientAudio { 
                         packet
