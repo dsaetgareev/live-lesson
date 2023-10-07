@@ -17,6 +17,7 @@ pub enum Msg {
     Tick,
     SwitchArea(AreaKind),
     OpenPaint,
+    OnCummunication,
 }
 
 #[derive(PartialEq, Properties)]
@@ -79,6 +80,12 @@ impl Component for HostArea {
             },
             Msg::OpenPaint => {
                 let message = Message::OpenPaint;
+                self.send_message_to_all(message);
+                true
+            },
+            Msg::OnCummunication => {
+                let is_communication = self.host_props.borrow_mut().switch_communication();
+                let message = Message::OnCummunication { message: is_communication };
                 self.send_message_to_all(message);
                 true
             }
@@ -148,6 +155,9 @@ impl Component for HostArea {
                 
                 Msg::OpenPaint
             });
+            let on_communication = ctx.link().callback(|_: MouseEvent| {
+                Msg::OnCummunication
+            });
             html! {
                 <>
                     <button>
@@ -159,10 +169,18 @@ impl Component for HostArea {
                     <button>
                         <Icon icon_id={IconId::HeroiconsSolidPaintBrush} onclick={ paint_click }/>
                     </button>
+                    <button onclick={ on_communication }>
+                        { 
+                            if self.host_props.borrow().is_communication {
+                                html! { <Icon icon_id={IconId::BootstrapPeopleFill}/> }
+                            } else {
+                                html! { <Icon icon_id={IconId::BootstrapPeople}/> }
+                            }
+                        }
+                    </button>
                 </>
             }
         };
-
        
         html! {
             <>

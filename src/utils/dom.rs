@@ -10,6 +10,10 @@ pub fn get_window() -> crate::Result<Window> {
     web_sys::window().ok_or_else(|| crate::Error::MissingElement("window node".to_owned()))
 }
 
+pub fn get_document() -> web_sys::Document{
+    global_window().document().expect("cannot get document")
+}
+
 pub fn get_query_params() -> crate::Result<UrlSearchParams> {
     let search = get_window()?.location().search().unwrap();
     UrlSearchParams::new_with_str(&search)
@@ -82,4 +86,21 @@ pub fn on_visible_el(is_visible: bool, el_1: &str, el_2: &str) {
         el_2.set_class_name(&el_1.class_name().replace("vis", "unvis"));
     }
    
+}
+
+pub fn switch_visible_el(is_visible: bool, el_id: &str) {
+    let element = get_element(el_id).unwrap();
+    if is_visible {
+        element.set_class_name(&element.class_name().replace("unvis", "vis"));
+    } else {
+        element.set_class_name(&element.class_name().replace("vis", "unvis"));
+    }
+}
+
+pub fn get_vis_class(is_vis: bool) -> String {
+    if is_vis {
+        "vis".to_string()
+    } else {
+        "unvis".to_string()
+    }
 }

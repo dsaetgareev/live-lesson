@@ -7,6 +7,7 @@ pub struct HostPorps {
     pub host_editor_content: String,
     pub host_area_content: TextAreaProps,
     pub host_area_kind: AreaKind,
+    pub is_communication: bool,
 }
 
 impl HostPorps {
@@ -15,6 +16,7 @@ impl HostPorps {
             host_editor_content: String::default(),
             host_area_content: TextAreaProps::new(),
             host_area_kind: AreaKind::Editor,
+            is_communication: true,
         }
     }
 
@@ -28,5 +30,14 @@ impl HostPorps {
 
     pub fn set_text_area_content(&mut self, content: String) {
         self.host_area_content.set_content(content);
+    }
+
+    pub fn is_communication(&mut self, is_communication: bool) {
+        self.is_communication = is_communication;
+    }
+
+    pub fn switch_communication(&mut self) -> bool {
+        self.is_communication = !self.is_communication;
+        self.is_communication
     }
 }

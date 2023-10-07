@@ -3,7 +3,7 @@ use std::{collections::HashMap, cell::RefCell, rc::Rc, sync::Arc};
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
 use web_sys::{ EncodedAudioChunkInit, EncodedAudioChunk };
 
-use crate::{ utils::{inputs::{Message, ClientMessage}, dom::{create_video_id, on_visible_el}, device::{create_video_decoder_frame, create_audio_decoder, create_video_decoder_video }}, models::{video::Video, client::{ClientProps, ClientItem}, host::HostPorps, commons::AreaKind, audio::Audio}, wrappers::EncodedAudioChunkTypeWrapper};
+use crate::{ utils::{inputs::{Message, ClientMessage}, dom::{create_video_id, on_visible_el}, device::{create_video_decoder_frame, create_audio_decoder, create_video_decoder_video }}, models::{video::Video, client::{ClientProps, ClientItem}, host::HostPorps, commons::AreaKind, audio::Audio, packet::AudioPacket}, wrappers::EncodedAudioChunkTypeWrapper};
 
 
 pub struct HostManager {
@@ -49,17 +49,16 @@ impl HostManager {
                 let editor_content = &host_props.borrow().host_editor_content;
                 let text_area_content = &host_props.borrow().host_area_content.content;
                 let area_kind = host_props.borrow().host_area_kind;
+                let is_communication = host_props.borrow().is_communication;
                 let message = Message::Init { 
                     editor_content: editor_content.clone(),
                     text_area_content: text_area_content.clone(),
                     area_kind: area_kind.clone(),
+                    is_communication
                 };
-                let message = serde_json::to_string(&message).unwrap();
-                if !editor_content.is_empty() || !text_area_content.is_empty() {
-                    mini_server
-                        .send_message(user_id, &message)
-                        .expect("failed to send current input to new connection");
-                }
+                mini_server
+                    .send_message(user_id, &message)
+                    .expect("failed to send current input to new connection");
                 players.as_ref().borrow_mut().insert(user_id, ClientItem::new(area_kind));
                 let video_id = create_video_id(user_id.into_inner().to_string());
                 decoders.as_ref().borrow_mut().insert(user_id, Rc::new(RefCell::new(create_video_decoder_frame(video_id))));
@@ -83,22 +82,14 @@ impl HostManager {
                     } => {
                         let video = decoders.as_ref().borrow().get(&user_id).unwrap().clone();
                         let mut video = video.as_ref().borrow_mut();
-                        let _ = video.decode_break(Arc::new(message));
+                        let _ = video.decode(Arc::new(message));
                     },
                     ClientMessage::ClientAudio { 
                         packet
                     } => {
                         let audio = audio_decoders.as_ref().borrow().get(&user_id).unwrap().clone();
-                        let chunk_type = EncodedAudioChunkTypeWrapper::from(packet.chunk_type).0;
-                        let audio_data = &packet.message;
-                        let audio_data_js: js_sys::Uint8Array =
-                            js_sys::Uint8Array::new_with_length(audio_data.len() as u32);
-                        audio_data_js.copy_from(audio_data.as_slice());
-                        let chunk_type = EncodedAudioChunkTypeWrapper(chunk_type);
-                        let mut audio_chunk_init =
-                            EncodedAudioChunkInit::new(&audio_data_js.into(), packet.timestamp, chunk_type.0);
-                        audio_chunk_init.duration(packet.duration);
-                        let encoded_audio_chunk = EncodedAudioChunk::new(&audio_chunk_init).unwrap();
+                        
+                        let encoded_audio_chunk = AudioPacket::get_encoded_audio_chunk(packet);
                         let state = audio.borrow().audio_decoder.state();
                         match state {
                             web_sys::CodecState::Unconfigured => {

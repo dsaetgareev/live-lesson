@@ -17,7 +17,7 @@ use crate::media_devices::device_selector::DeviceSelector;
 use crate::components::multi::host::host_manager::HostManager;
 use crate::models::client::{ClientProps, ClientItem};
 use crate::models::host::HostPorps;
-use crate::models::packet::VideoPacket;
+use crate::models::packet::{VideoPacket, AudioPacket};
 use crate::utils::inputs::Message;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
 use crate::encoders::screen_encoder::ScreenEncoder;
@@ -243,23 +243,10 @@ impl Component for Host {
 
                 let ms = self.get_mini_server();
                 let on_audio = move |chunk: web_sys::EncodedAudioChunk| {
-                    let duration = chunk.duration().unwrap();
-                    let mut buffer: [u8; 100000] = [0; 100000];
-                    let byte_length = chunk.byte_length() as usize;
-
-                    chunk.copy_to_with_u8_array(&mut buffer);
-
-                    let data = buffer[0..byte_length as usize].to_vec();
-
-                    let chunk_type = EncodedAudioChunkTypeWrapper(chunk.type_()).to_string();
-                    let timestamp = chunk.timestamp();
-                    // let timestamp = Date::new_0().get_time() as f64;
-                    // let data = aes.encrypt(&data).unwrap();
+                    
+                    let audio_packet = AudioPacket::new(chunk);
                     let message = Message::HostAudio { 
-                        message: data,
-                        chunk_type,
-                        timestamp,
-                        duration
+                        packet: audio_packet
                     };
                     let _ = ms.send_message_to_all(&message);                
                 };              

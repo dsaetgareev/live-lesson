@@ -16,12 +16,11 @@ use crate::encoders::microphone_encoder::MicrophoneEncoder;
 use crate::models::audio::{Audio, self};
 use crate::models::client::ClientProps;
 use crate::models::host::HostPorps;
-use crate::models::packet::VideoPacket;
+use crate::models::packet::{VideoPacket, AudioPacket};
 use crate::utils::device::create_audio_decoder;
-use crate::utils::dom::on_visible_el;
-use crate::utils::inputs::{ClientMessage, ManyMassage, AudioPacket};
+use crate::utils::dom::{on_visible_el, get_vis_class};
+use crate::utils::inputs::{ClientMessage, ManyMassage};
 use crate::utils;
-use crate::wrappers::EncodedAudioChunkTypeWrapper;
 use crate::media_devices::device_selector::DeviceSelector;
 
 use super::client_manager::ClientManager;
@@ -168,13 +167,18 @@ impl Component for Client {
                 }
 
                 let ms = self.client_manager.as_mut().unwrap().mini_client.clone();
+                let nm = self.client_manager.as_ref().unwrap().network_manager.clone();
+                let is_communication = self.host_props.borrow().is_communication;
                 let on_frame = move |packet: VideoPacket| {
                                        
                     let message = ClientMessage::ClientVideo { 
-                        message: packet
+                        message: packet.clone()
                     };
                     let _ = ms.send_message_to_host(&message);
-                    
+                    if is_communication {
+                        let message = ManyMassage::Video { packet };
+                        let _ = nm.send_message_to_all(&message);
+                    }
                 };
                 self.camera.start(
                     on_frame,
@@ -200,31 +204,20 @@ impl Component for Client {
 
                 let ms = self.client_manager.as_mut().unwrap().mini_client.clone();
                 let nm = self.client_manager.as_mut().unwrap().network_manager.clone();
+                let is_communication = self.host_props.borrow().is_communication;
                 let on_audio = move |chunk: web_sys::EncodedAudioChunk| {
-                    let duration = chunk.duration().unwrap();
-                    let mut buffer: [u8; 100000] = [0; 100000];
-                    let byte_length = chunk.byte_length() as usize;
-
-                    chunk.copy_to_with_u8_array(&mut buffer);
-
-                    let data = buffer[0..byte_length as usize].to_vec();
-
-                    let chunk_type = EncodedAudioChunkTypeWrapper(chunk.type_()).to_string();
-                    let timestamp = chunk.timestamp();
-                    let audio_packet = AudioPacket {
-                        message: data,
-                        chunk_type,
-                        timestamp,
-                        duration
-                    };
+                    
+                    let audio_packet = AudioPacket::new(chunk);
                     let message = ClientMessage::ClientAudio { 
                         packet: audio_packet.clone()
                     };
                     let _ = ms.send_message_to_host(&message);
-                    let message = ManyMassage::Audio { 
-                        packet: audio_packet
-                    };
-                    let _ = nm.send_message_to_all(&message);            
+                    if is_communication {
+                        let message = ManyMassage::Audio { 
+                            packet: audio_packet
+                        };
+                        let _ = nm.send_message_to_all(&message);
+                    }                                
                 };
                 self.microphone.start(
                     on_audio
@@ -273,10 +266,12 @@ impl Component for Client {
             
         };
 
+        let is_visible = get_vis_class(self.host_props.borrow().is_communication); 
+
         html! {
             <div id="container" class="container">
                 <div class="client-container">
-                    <div class=".content-item">
+                    <div class="content-item">
                         <div>
                             <button onclick={ on_video_btn }>
                                 { 
@@ -292,6 +287,8 @@ impl Component for Client {
                         <video class="client_canvas vis" autoplay=true id={VIDEO_ELEMENT_ID} poster="placeholder.png"></video>
                         <div id="video-logo" class="unvis">
                             <Icon icon_id={IconId::FontAwesomeSolidHorseHead}/>
+                        </div>
+                        <div id="video-box" class={ is_visible }>
                         </div>
                     </div>
                     <div class=".content-item">
@@ -315,12 +312,6 @@ impl Component for Client {
             </div>
             
         }
-    }
-
-
-
-    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        
     }
 
 }

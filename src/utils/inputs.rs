@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::models::{packet::VideoPacket, commons::AreaKind};
+use crate::models::{packet::{VideoPacket, AudioPacket}, commons::AreaKind};
 
 #[derive(Serialize, Deserialize)]
 pub enum PaintAction {
@@ -14,7 +14,8 @@ pub enum Message {
     Init {
         editor_content: String,
         text_area_content: String,
-        area_kind: AreaKind
+        area_kind: AreaKind,
+        is_communication: bool,
     },
     HostToHost {
         message: String,
@@ -34,10 +35,7 @@ pub enum Message {
         message: VideoPacket
     },
     HostAudio {
-        message: Vec<u8>,
-        chunk_type: String,
-        timestamp: f64,
-        duration: f64,
+        packet: AudioPacket
     },
     HostSwitchAudio,
     HostSwitchVideo,
@@ -49,15 +47,10 @@ pub enum Message {
         offset_x: f64,
         offset_y: f64,
         action: PaintAction,
+    },
+    OnCummunication {
+        message: bool
     }
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct AudioPacket {
-    pub message: Vec<u8>,
-    pub chunk_type: String,
-    pub timestamp: f64,
-    pub duration: f64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -89,4 +82,7 @@ pub enum ManyMassage {
     Audio {
         packet: AudioPacket
     },
+    Video {
+        packet: VideoPacket
+    }
 }

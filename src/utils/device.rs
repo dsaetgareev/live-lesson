@@ -8,7 +8,12 @@ use web_sys::{VideoDecoder, HtmlImageElement, HtmlCanvasElement, CanvasRendering
 
 use crate::{constants::{VIDEO_CODEC, AUDIO_CHANNELS, AUDIO_CODEC, AUDIO_SAMPLE_RATE}, models::{video::Video, audio::Audio}};
 
-use super::{dom::get_window, config::configure_audio_context};
+use super::{dom::{get_window, get_document, get_element}, config::configure_audio_context};
+
+pub enum VideoElementKind {
+    ClentBox,
+    ReadyId,
+}
 
 pub fn create_video_decoder(render_id: String) -> Video {
     let error_video = Closure::wrap(Box::new(move |e: JsValue| {
@@ -126,11 +131,13 @@ pub fn create_video_decoder_frame(render_id: String) -> Video {
     Video::new(local_video_decoder, video_config, ren_id)
 }
 
-pub fn create_video_decoder_video(video_elem_id: String) -> Video{
+pub fn create_video_decoder_video(video_elem_id: String, el_kind: VideoElementKind) -> Video {
     
     let r_id = video_elem_id.clone();
+    let err_id = video_elem_id.clone();
     let error_video = Closure::wrap(Box::new(move |e: JsValue| {
         error!("{:?}", e);
+        error!("error from id: {}", err_id);
     }) as Box<dyn FnMut(JsValue)>);
 
     let video_stream_generator =
@@ -138,15 +145,7 @@ pub fn create_video_decoder_video(video_elem_id: String) -> Video{
     let js_tracks = Array::new();
     js_tracks.push(&video_stream_generator);
     let media_stream = MediaStream::new_with_tracks(&js_tracks).unwrap();
-
-    let video_element: HtmlVideoElement = get_window().unwrap()
-        .document()
-        .unwrap()
-        .get_element_by_id(&video_elem_id)
-        .unwrap()
-        .unchecked_into::<HtmlVideoElement>();
-
-
+    let video_element = create_video_element(video_elem_id, el_kind);
     let output = Closure::wrap(Box::new(move |original_chunk: JsValue| {
         let chunk = Box::new(original_chunk);
         let video_chunk = chunk.clone().unchecked_into::<HtmlVideoElement>();
@@ -188,6 +187,35 @@ pub fn create_video_decoder_video(video_elem_id: String) -> Video{
     let video_config = VideoDecoderConfig::new(&VIDEO_CODEC); 
     local_video_decoder.configure(&video_config);
     Video::new(local_video_decoder, video_config, r_id)
+}
+
+fn create_video_element(video_elem_id: String, el_kind: VideoElementKind) -> HtmlVideoElement {
+    match el_kind {
+        VideoElementKind::ClentBox => {
+            let video_element = get_document()
+                .create_element("video")
+                .expect("cannot create video element")
+                .dyn_into::<web_sys::HtmlVideoElement>()
+                .expect("cannot cast video element");
+
+            video_element.set_id(&video_elem_id);
+            video_element.set_class_name("item-canvas");
+            video_element.set_autoplay(true);
+    
+            let div = get_element("video-box").unwrap();
+            let _ = div.append_child(&video_element);
+            video_element
+        },
+        VideoElementKind::ReadyId => {
+            let video_element = get_window().unwrap()
+                .document()
+                .unwrap()
+                .get_element_by_id(&video_elem_id)
+                .unwrap()
+                .unchecked_into::<HtmlVideoElement>();
+            video_element
+        },
+    }
 }
 
 pub fn create_audio_decoder() -> Audio {
