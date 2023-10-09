@@ -2,10 +2,10 @@ use std::{rc::Rc, cell::RefCell, sync::Arc, collections::HashMap};
 
 use wasm_bindgen::JsCast;
 use wasm_peers::{one_to_many::MiniClient, ConnectionType, SessionId, many_to_many::NetworkManager, UserId};
-use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk, HtmlCanvasElement};
+use web_sys::HtmlCanvasElement;
 use yew::Callback;
 
-use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind, audio::{self, Audio}, video::Video, packet::AudioPacket}, utils::{ inputs::{Message, PaintAction, ManyMassage}, device::{create_audio_decoder, create_video_decoder_video, VideoElementKind}, dom::{on_visible_el, create_video_id, switch_visible_el}}, crypto::aes::Aes128State, wrappers::EncodedAudioChunkTypeWrapper, components::multi::draw::paint};
+use crate::{models::{host::HostPorps, client::ClientProps, commons::AreaKind, audio::Audio, video::Video, packet::AudioPacket}, utils::{ inputs::{Message, PaintAction, ManyMassage}, device::{create_audio_decoder, create_video_decoder_video, VideoElementKind}, dom::{on_visible_el, create_video_id, switch_visible_el, remove_element}}, crypto::aes::Aes128State, components::multi::draw::paint};
 
 
 pub struct ClientManager {
@@ -53,37 +53,10 @@ impl ClientManager {
         host_props: Rc<RefCell<HostPorps>>,
         client_props: Rc<RefCell<ClientProps>>,
     ) {
-        let is_ready = Rc::new(RefCell::new(false));
         let on_tick  = Rc::new(RefCell::new(on_tick));
         let on_open_callback = {
-            let mini_client = self.mini_client.clone();
-            let is_ready = Rc::clone(&is_ready);
-            let host_props = host_props.clone();
-            let on_tick = on_tick.clone();
             move || {
-                // if !*is_ready.borrow() {
-                //     host_props.borrow_mut().host_area_content.is_disabled = false;
-                //     host_props.borrow_mut().host_area_content.set_placeholder(
-                //         "This is a live document shared with other users.\nWhat you write will be \
-                //          visible to everyone.".to_string()
-                //     );
-                //     *is_ready.borrow_mut() = true;
-                // }
-                // let editor_content = &host_props.borrow().host_editor_content;
-                // let text_area_content = &host_props.borrow().host_area_content.content;
-                // let message = Message::Init { 
-                //     editor_content: editor_content.clone(),
-                //     text_area_content: text_area_content.clone(),
-                //     area_kind: host_props.borrow().host_area_kind,
-                //     is_communication: host_props.borrow().is_communication,
-                // };
-                // let message = serde_json::to_string(&message).unwrap();
-                // if !editor_content.is_empty() || !text_area_content.is_empty() {
-                //     mini_client
-                //         .send_message_to_host(&message)
-                //         .expect("failed to send current input to new connection");
-                // }
-                // on_tick.borrow()();
+               
             }
         };
 
@@ -299,18 +272,25 @@ impl ClientManager {
             } 
         
         };
-        self.mini_client.start(on_open_callback, on_message_callback);
+
+        let on_disconnect_callback = {
+            move |_user_id: UserId| {
+                
+            }
+        };
+        self.mini_client.start(on_open_callback, on_message_callback, on_disconnect_callback);
     }
 
     pub fn many_init(&mut self) {
         let audio_decoders = self.audio_decoders.clone();
         let video_decoders = self.video_decoders.clone();
+        
         let on_open_callback = {
             
             move |user_id: UserId| {
                 audio_decoders.as_ref().borrow_mut().insert(user_id, Rc::new(RefCell::new(create_audio_decoder())));
                 let video_id = create_video_id(user_id.into_inner().to_string());
-                video_decoders.as_ref().borrow_mut().insert(user_id, Rc::new(RefCell::new(create_video_decoder_video(video_id, VideoElementKind::ClentBox))));
+                video_decoders.as_ref().borrow_mut().insert(user_id, Rc::new(RefCell::new(create_video_decoder_video(video_id, VideoElementKind::ClentBox))));                
             }
         };
 
@@ -353,6 +333,16 @@ impl ClientManager {
             } 
         
         };
-        self.network_manager.start(on_open_callback, on_message_callback);
+        let on_disconnect_callback = {
+            let video_decoders = self.video_decoders.clone();
+            move |user_id: UserId| {
+                video_decoders
+                    .borrow_mut()
+                    .remove(&user_id)
+                    .expect("cannot remove decoders");
+                remove_element(create_video_id(user_id.to_string()));
+            }
+        };
+        self.network_manager.start(on_open_callback, on_message_callback, on_disconnect_callback);
     }
 }

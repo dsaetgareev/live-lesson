@@ -4,8 +4,7 @@ use std::str::FromStr;
 use gloo_timers::callback::Timeout;
 use wasm_peers::one_to_many::MiniClient;
 use wasm_peers::{get_random_session_id, SessionId};
-use web_sys::MouseEvent;
-use yew::{html, Component, Context, Html, Callback, Properties};
+use yew::{html, Component, Context, Html, Callback};
 use log::error;
 use yew_icons::{Icon, IconId};
 
@@ -13,7 +12,7 @@ use crate::components::multi::client::client_area::ClientArea;
 use crate::components::multi::client::host_area::HostArea;
 use crate::encoders::camera_encoder::CameraEncoder;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
-use crate::models::audio::{Audio, self};
+use crate::models::audio::Audio;
 use crate::models::client::ClientProps;
 use crate::models::host::HostPorps;
 use crate::models::packet::{VideoPacket, AudioPacket};

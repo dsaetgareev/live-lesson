@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use wasm_peers::many_to_many::NetworkManager;
-use wasm_peers::{get_random_session_id, ConnectionType, SessionId};
+use wasm_peers::{get_random_session_id, ConnectionType, SessionId, UserId};
 use yew::{html, Component, Context, Html};
 
 use crate::utils::dom::get_window;
@@ -102,7 +102,12 @@ impl Component for Document {
                 }
             }
         };
-        network_manager.start(on_open_callback, on_message_callback);
+        let on_disconnect_callback = {
+            move |_user_id: UserId| {
+                
+            }
+        };
+        network_manager.start(on_open_callback, on_message_callback, on_disconnect_callback);
         Self {
             session_id,
             network_manager,

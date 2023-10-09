@@ -7,7 +7,7 @@ use web_sys::{InputEvent, HtmlTextAreaElement, MouseEvent};
 use yew::{Component, Properties, html, Callback};
 use yew_icons::{Icon, IconId};
 
-use crate::{models::{host::HostPorps, commons::AreaKind}, components::{editor::editor::EditorWrapper, multi::draw::{self, paint::Paint}}, utils::inputs::Message};
+use crate::{models::{host::HostPorps, commons::AreaKind}, components::{editor::editor::EditorWrapper, multi::draw::{self}}, utils::inputs::Message};
 
 
 const TEXTAREA_ID: &str = "document-textarea";

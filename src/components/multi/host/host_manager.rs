@@ -1,9 +1,8 @@
 use std::{collections::HashMap, cell::RefCell, rc::Rc, sync::Arc};
 
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
-use web_sys::{ EncodedAudioChunkInit, EncodedAudioChunk };
 
-use crate::{ utils::{inputs::{Message, ClientMessage}, dom::{create_video_id, on_visible_el}, device::{create_video_decoder_frame, create_audio_decoder, create_video_decoder_video }}, models::{video::Video, client::{ClientProps, ClientItem}, host::HostPorps, commons::AreaKind, audio::Audio, packet::AudioPacket}, wrappers::EncodedAudioChunkTypeWrapper};
+use crate::{ utils::{inputs::{Message, ClientMessage}, dom::{create_video_id, on_visible_el}, device::{create_video_decoder_frame, create_audio_decoder }}, models::{video::Video, client::{ClientProps, ClientItem}, host::HostPorps, commons::AreaKind, audio::Audio, packet::AudioPacket}};
 
 
 pub struct HostManager {
@@ -165,6 +164,11 @@ impl HostManager {
             }
         };
 
-        self.mini_server.start(on_open_callback, on_message_callback);
+        let on_disconnect_callback = {
+            move |_user_id: UserId| {
+                
+            }
+        };
+        self.mini_server.start(on_open_callback, on_message_callback, on_disconnect_callback);
     }
 }

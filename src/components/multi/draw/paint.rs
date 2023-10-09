@@ -140,7 +140,7 @@ impl Component for Paint {
         }
     }
 
-    fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
+    fn view(&self, _ctx: &yew::Context<Self>) -> yew::Html {
         html! {
             <div>
                 <canvas ref={ self.canvas.clone() } class="paint"></canvas>
@@ -249,7 +249,7 @@ fn host_action(canvas: &web_sys::HtmlCanvasElement, context: web_sys::CanvasRend
 }
 
 
-fn client_action(canvas: &web_sys::HtmlCanvasElement, context: web_sys::CanvasRenderingContext2d, send_message_all_cb: Callback<Message>) {
+fn _client_action(canvas: &web_sys::HtmlCanvasElement, context: web_sys::CanvasRenderingContext2d, send_message_all_cb: Callback<Message>) {
     let context = Rc::new(context);
     let pressed = Rc::new(Cell::new(false));
        

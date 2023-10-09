@@ -25,7 +25,7 @@ impl Component for Welcome {
         }
     }
 
-    fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::ToClient(audio) => {
                 self.audio = Some(audio);

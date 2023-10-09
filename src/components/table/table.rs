@@ -2,7 +2,7 @@ use std::{rc::Rc, cell::RefCell, str::FromStr};
 
 use serde::{Serialize, Deserialize};
 use wasm_bindgen::JsCast;
-use wasm_peers::{get_random_session_id, SessionId, ConnectionType, many_to_many::NetworkManager};
+use wasm_peers::{get_random_session_id, SessionId, ConnectionType, many_to_many::NetworkManager, UserId};
 use web_sys::HtmlElement;
 use yew::prelude::*;
 
@@ -102,7 +102,13 @@ impl Component for Table {
             }
         };
 
-        network_manager.start(on_open_callback, on_message_callback);
+        let on_disconnect_callback = {
+            move |_user_id: UserId| {
+                
+            }
+        };
+
+        network_manager.start(on_open_callback, on_message_callback, on_disconnect_callback);
 
         let (colunms_headers, items) = create_table_items();
         Self {

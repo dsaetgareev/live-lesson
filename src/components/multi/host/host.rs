@@ -22,7 +22,6 @@ use crate::utils::inputs::Message;
 use crate::encoders::microphone_encoder::MicrophoneEncoder;
 use crate::encoders::screen_encoder::ScreenEncoder;
 use crate::utils;
-use crate::wrappers::EncodedAudioChunkTypeWrapper;
 
 const VIDEO_ELEMENT_ID: &str = "webcam";
 

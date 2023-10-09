@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use yew::{Component, html};
 
-use crate::{models::audio::Audio, components::multi::{ host::host::Host}, utils::device::create_audio_decoder};
+use crate::{models::audio::Audio, components::multi::host::host::Host, utils::device::create_audio_decoder};
 
 pub enum Msg {
     ToClient(Rc<RefCell<Audio>>)
@@ -25,7 +25,7 @@ impl Component for WelcomeHost {
         }
     }
 
-    fn update(&mut self, ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &yew::Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::ToClient(audio) => {
                 self.audio = Some(audio);
