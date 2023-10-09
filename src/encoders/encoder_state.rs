@@ -2,10 +2,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-//
-// EncoderState struct contains state variables that are common among the encoders, and the logic
-// for working with them.
-//
 
 #[derive(Clone)]
 pub struct EncoderState {

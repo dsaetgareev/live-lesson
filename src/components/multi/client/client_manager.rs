@@ -265,8 +265,8 @@ impl ClientManager {
                     Message::OnCummunication { 
                         message
                     } => {
-                        log::error!("is com {}", message);
                         switch_visible_el(message, "video-box");
+                        host_props.borrow().is_communication.replace(message);
                     }
                 }
             } 

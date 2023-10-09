@@ -85,7 +85,7 @@ impl Component for HostArea {
             },
             Msg::OnCummunication => {
                 let is_communication = self.host_props.borrow_mut().switch_communication();
-                let message = Message::OnCummunication { message: is_communication };
+                let message = Message::OnCummunication { message: *is_communication.borrow() };
                 self.send_message_to_all(message);
                 true
             }
@@ -171,7 +171,7 @@ impl Component for HostArea {
                     </button>
                     <button onclick={ on_communication }>
                         { 
-                            if self.host_props.borrow().is_communication {
+                            if *(self.host_props.borrow().is_communication.borrow()) {
                                 html! { <Icon icon_id={IconId::BootstrapPeopleFill}/> }
                             } else {
                                 html! { <Icon icon_id={IconId::BootstrapPeople}/> }

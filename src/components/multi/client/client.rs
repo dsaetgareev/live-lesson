@@ -132,7 +132,6 @@ impl Component for Client {
             },
             Msg::VideoDeviceChanged(video) => {
                 if self.camera.select(video) {
-                    log::info!("selected");
                     let link = ctx.link().clone();
                     let on_video = self.camera.get_enabled();
                     let timeout = Timeout::new(1000, move || {
@@ -167,14 +166,14 @@ impl Component for Client {
 
                 let ms = self.client_manager.as_mut().unwrap().mini_client.clone();
                 let nm = self.client_manager.as_ref().unwrap().network_manager.clone();
-                let is_communication = self.host_props.borrow().is_communication;
+                let is_communication = self.host_props.borrow().is_communication.clone();
                 let on_frame = move |packet: VideoPacket| {
                                        
                     let message = ClientMessage::ClientVideo { 
                         message: packet.clone()
                     };
                     let _ = ms.send_message_to_host(&message);
-                    if is_communication {
+                    if *is_communication.borrow() {
                         let message = ManyMassage::Video { packet };
                         let _ = nm.send_message_to_all(&message);
                     }
@@ -183,7 +182,6 @@ impl Component for Client {
                     on_frame,
                     VIDEO_ELEMENT_ID,
                 );
-                log::info!("camera started");
                 false
             },
             Msg::AudioDeviceChanged(audio) => {
@@ -203,7 +201,7 @@ impl Component for Client {
 
                 let ms = self.client_manager.as_mut().unwrap().mini_client.clone();
                 let nm = self.client_manager.as_mut().unwrap().network_manager.clone();
-                let is_communication = self.host_props.borrow().is_communication;
+                let is_communication = self.host_props.borrow().is_communication.clone();
                 let on_audio = move |chunk: web_sys::EncodedAudioChunk| {
                     
                     let audio_packet = AudioPacket::new(chunk);
@@ -211,7 +209,7 @@ impl Component for Client {
                         packet: audio_packet.clone()
                     };
                     let _ = ms.send_message_to_host(&message);
-                    if is_communication {
+                    if *is_communication.borrow() {
                         let message = ManyMassage::Audio { 
                             packet: audio_packet
                         };
@@ -265,7 +263,7 @@ impl Component for Client {
             
         };
 
-        let is_visible = get_vis_class(self.host_props.borrow().is_communication); 
+        let is_visible = get_vis_class(*(self.host_props.borrow().is_communication.borrow())); 
 
         html! {
             <div id="container" class="container">

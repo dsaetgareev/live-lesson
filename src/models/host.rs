@@ -1,3 +1,5 @@
+use std::{rc::Rc, cell::RefCell};
+
 use crate::models::commons::TextAreaProps;
 
 use super::commons::AreaKind;
@@ -7,7 +9,7 @@ pub struct HostPorps {
     pub host_editor_content: String,
     pub host_area_content: TextAreaProps,
     pub host_area_kind: AreaKind,
-    pub is_communication: bool,
+    pub is_communication: Rc<RefCell<bool>>,
 }
 
 impl HostPorps {
@@ -16,7 +18,7 @@ impl HostPorps {
             host_editor_content: String::default(),
             host_area_content: TextAreaProps::new(),
             host_area_kind: AreaKind::Editor,
-            is_communication: true,
+            is_communication: Rc::new(RefCell::new(true)),
         }
     }
 
@@ -33,11 +35,12 @@ impl HostPorps {
     }
 
     pub fn is_communication(&mut self, is_communication: bool) {
-        self.is_communication = is_communication;
+        self.is_communication.as_ref().replace(is_communication);
     }
 
-    pub fn switch_communication(&mut self) -> bool {
-        self.is_communication = !self.is_communication;
-        self.is_communication
+    pub fn switch_communication(&mut self) -> Rc<RefCell<bool>> {
+        let invers = self.is_communication.borrow().clone();
+        self.is_communication.as_ref().replace(!invers);
+        self.is_communication.clone()
     }
 }

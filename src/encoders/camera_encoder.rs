@@ -2,7 +2,6 @@ use js_sys::Array;
 use js_sys::Boolean;
 use js_sys::JsString;
 use js_sys::Reflect;
-use log::debug;
 use log::error;
 use std::sync::atomic::Ordering;
 use wasm_bindgen::prelude::Closure;
@@ -199,7 +198,6 @@ impl CameraEncoder {
                 }
             };
             poll_video.await;
-            debug!("Killing video streamer");
         });
     }
 }

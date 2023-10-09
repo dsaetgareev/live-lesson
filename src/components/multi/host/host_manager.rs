@@ -48,7 +48,7 @@ impl HostManager {
                 let editor_content = &host_props.borrow().host_editor_content;
                 let text_area_content = &host_props.borrow().host_area_content.content;
                 let area_kind = host_props.borrow().host_area_kind;
-                let is_communication = host_props.borrow().is_communication;
+                let is_communication = *(host_props.borrow().is_communication.borrow());
                 let message = Message::Init { 
                     editor_content: editor_content.clone(),
                     text_area_content: text_area_content.clone(),
