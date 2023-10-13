@@ -4,7 +4,7 @@ use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk};
 use crate::wrappers::{EncodedVideoChunkTypeWrapper, EncodedAudioChunkTypeWrapper};
 
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct VideoPacket {
     pub data: Vec<u8>,
     pub chunk_type: String,

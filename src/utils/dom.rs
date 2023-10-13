@@ -75,7 +75,6 @@ pub fn create_video_id(user_id: String) -> String {
 }
 
 pub fn remove_element(element_id: String) {
-    log::error!("remove element {}", element_id);
     get_element(&element_id)
         .expect("cannot get element")
         .remove();

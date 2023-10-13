@@ -79,13 +79,14 @@ pub fn editor_wrapper(props: &EditorWrapperProps) -> Html {
         // Here we define our callback, we use use_callback as we want to re-render when dependencies change.
         // See https://yew.rs/docs/concepts/function-components/state#general-view-of-how-to-store-state
         use_callback(
+            text_model,
             move |editor_link: CodeEditorLink, _text_model| {
                 editor_link.with_editor(|editor| {
                     let raw_editor: &IStandaloneCodeEditor = editor.as_ref();
                     raw_editor.on_key_up(js_closure.as_ref().unchecked_ref());          
                 });
             },
-            text_model,
+            
         )
     };
     html! {

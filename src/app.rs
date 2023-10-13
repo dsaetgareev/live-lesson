@@ -1,4 +1,4 @@
-use yew::{html, Component, Context, Html};
+use yew::{html, Html, function_component};
 use yew_router::prelude::*;
 
 use crate::components::document::document::Document;
@@ -18,28 +18,14 @@ pub enum Route {
     Multi,
 }
 
-pub struct App;
-
-impl Component for App {
-    type Message = ();
-    type Properties = ();
-
-    fn create(_ctx: &Context<Self>) -> Self {
-        Self {}
-    }
-
-    fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
-        true
-    }
-
-    fn view(&self, _ctx: &Context<Self>) -> Html {
-        html! {
-            <BrowserRouter>
-                <main>
-                    <Switch<Route> render={switch} />
-                </main>
-            </BrowserRouter>
-        }
+#[function_component(App)]
+pub fn app() -> Html {
+    html! {
+        <BrowserRouter>
+            <main>
+                <Switch<Route> render={switch} />
+            </main>
+        </BrowserRouter>
     }
 }
 

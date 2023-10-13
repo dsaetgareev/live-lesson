@@ -7,7 +7,7 @@ use crate::{wrappers::EncodedVideoChunkTypeWrapper, utils::{device::{ create_vid
 
 use super::packet::VideoPacket;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Video {
     pub cache: BTreeMap<u64, Arc<VideoPacket>>,
     pub video_decoder: VideoDecoder,

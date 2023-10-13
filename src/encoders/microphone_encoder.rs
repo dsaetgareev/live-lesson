@@ -4,7 +4,6 @@ use js_sys::JsString;
 use js_sys::Reflect;
 use log::error;
 use web_sys::EncodedAudioChunk;
-use std::sync::atomic::Ordering;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
@@ -29,6 +28,7 @@ use crate::constants::AUDIO_CODEC;
 use crate::constants::AUDIO_SAMPLE_RATE;
 use crate::utils::dom::get_window;
 
+#[derive(Clone, PartialEq)]
 pub struct MicrophoneEncoder {
     state: EncoderState,
 }
@@ -130,11 +130,11 @@ impl MicrophoneEncoder {
 
             let poll_audio = async {
                 loop {
-                    if !enabled.load(Ordering::Acquire)
-                        || destroy.load(Ordering::Acquire)
-                        || switching.load(Ordering::Acquire)
+                    if !*enabled.borrow()
+                        || *destroy.borrow()
+                        || *switching.borrow()
                     {
-                        switching.store(false, Ordering::Release);
+                        *switching.as_ref().borrow_mut() = false;
                         let audio_track = audio_track.clone().unchecked_into::<MediaStreamTrack>();
                         audio_track.stop();
                         audio_encoder.close();

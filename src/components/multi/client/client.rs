@@ -97,7 +97,7 @@ impl Component for Client {
             session_id,
             client_manager: None,
             host_props: Rc::new(RefCell::new(HostPorps::new())),
-            client_props: Rc::new(RefCell::new(ClientProps::new(String::default(), String::default()))),
+            client_props: Rc::new(RefCell::new(ClientProps::new())),
             camera: CameraEncoder::new(),
             microphone: MicrophoneEncoder::new(),
             audio,

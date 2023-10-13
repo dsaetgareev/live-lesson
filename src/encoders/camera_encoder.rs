@@ -3,7 +3,6 @@ use js_sys::Boolean;
 use js_sys::JsString;
 use js_sys::Reflect;
 use log::error;
-use std::sync::atomic::Ordering;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
@@ -31,6 +30,7 @@ use crate::constants::VIDEO_WIDTH;
 use crate::models::packet::VideoPacket;
 use crate::utils::dom::get_window;
 
+#[derive(Clone, PartialEq)]
 pub struct CameraEncoder {
     state: EncoderState,
 }
@@ -168,16 +168,16 @@ impl CameraEncoder {
             let mut video_frame_counter = 0;
             let poll_video = async {
                 loop {
-                    if !enabled.load(Ordering::Acquire)
-                        || destroy.load(Ordering::Acquire)
-                        || switching.load(Ordering::Acquire)
+                    if (!*enabled.borrow())
+                        || *destroy.borrow()
+                        || *switching.borrow()
                     {
                         video_track
                             .clone()
                             .unchecked_into::<MediaStreamTrack>()
                             .stop();
                         video_encoder.close();
-                        switching.store(false, Ordering::Release);
+                        *switching.as_ref().borrow_mut() = false;
                         return;
                     }
                     match JsFuture::from(video_reader.read()).await {

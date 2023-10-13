@@ -137,7 +137,7 @@ impl Component for Document {
                            to write once other join, or your connection is established.";
         html! {
             <main class="px-3">
-                <p class="lead"> { "Share session id: " } <span class="line">{ &self.session_id }</span> </p>
+                <p class="lead"> { "Share session id: " } <span class="line">{ &self.session_id.to_string() }</span> </p>
                 <p class="lead"> { "or just copy the page url." } </p>
                 <textarea id={ TEXTAREA_ID } class="document" cols="100" rows="30" { disabled } { placeholder } { oninput }/>
             </main>

@@ -2,9 +2,9 @@ use std::{collections::HashMap, cell::RefCell, rc::Rc, sync::Arc};
 
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
 
-use crate::{ utils::{inputs::{Message, ClientMessage}, dom::{create_video_id, on_visible_el}, device::{create_video_decoder_frame, create_audio_decoder }}, models::{video::Video, client::{ClientProps, ClientItem}, host::HostPorps, commons::AreaKind, audio::Audio, packet::AudioPacket}};
+use crate::{ utils::{inputs::{Message, ClientMessage}, dom::{create_video_id, on_visible_el, remove_element}, device::{ create_audio_decoder, create_video_decoder_video, VideoElementKind }}, models::{video::Video, client::{ClientProps, ClientItem}, host::HostPorps, commons::AreaKind, audio::Audio, packet::AudioPacket}, stores::host_store};
 
-
+#[derive(Clone, PartialEq)]
 pub struct HostManager {
     pub players: Rc<RefCell<HashMap<UserId, ClientItem>>>,
     pub decoders: Rc<RefCell<HashMap<UserId, Rc<RefCell<Video>>>>>,
@@ -15,9 +15,14 @@ pub struct HostManager {
 impl HostManager {
     pub fn new(
         session_id: SessionId,
-        connection_type: ConnectionType,
-        signaling_server_url: &str,
     ) -> Self {
+        let connection_type = ConnectionType::StunAndTurn {
+            stun_urls: env!("STUN_SERVER_URLS").to_string(),
+            turn_urls: env!("TURN_SERVER_URLS").to_string(),
+            username: env!("TURN_SERVER_USERNAME").to_string(),
+            credential: env!("TURN_SERVER_CREDENTIAL").to_string(),
+        };
+        let signaling_server_url = concat!(env!("SIGNALING_SERVER_URL"), "/one-to-many");
         let mini_server = MiniServer::new(signaling_server_url, session_id, connection_type)
         .expect("failed to create network manager");
         let players = Rc::new(RefCell::new(HashMap::new()));
@@ -33,36 +38,15 @@ impl HostManager {
 
     pub fn init(
         &mut self,
-        on_tick: impl Fn() + 'static,
+        on_action: impl Fn(host_store::Msg) + 'static,
         host_props: Rc<RefCell<HostPorps>>,
         client_props: Rc<RefCell<ClientProps>>,
     ) {
-        let on_tick  = Rc::new(RefCell::new(on_tick));
+        let on_action  = Rc::new(RefCell::new(on_action));
         let on_open_callback = {
-            let mini_server = self.mini_server.clone();
-            let players = self.players.clone();
-            let decoders = self.decoders.clone();
-            let audio_decoders = self.audio_decoders.clone();
-            let on_tick = on_tick.clone();
+            let on_action = on_action.clone();
             move |user_id: UserId| {
-                let editor_content = &host_props.borrow().host_editor_content;
-                let text_area_content = &host_props.borrow().host_area_content.content;
-                let area_kind = host_props.borrow().host_area_kind;
-                let is_communication = *(host_props.borrow().is_communication.borrow());
-                let message = Message::Init { 
-                    editor_content: editor_content.clone(),
-                    text_area_content: text_area_content.clone(),
-                    area_kind: area_kind.clone(),
-                    is_communication
-                };
-                mini_server
-                    .send_message(user_id, &message)
-                    .expect("failed to send current input to new connection");
-                players.as_ref().borrow_mut().insert(user_id, ClientItem::new(area_kind));
-                let video_id = create_video_id(user_id.into_inner().to_string());
-                decoders.as_ref().borrow_mut().insert(user_id, Rc::new(RefCell::new(create_video_decoder_frame(video_id))));
-                audio_decoders.as_ref().borrow_mut().insert(user_id, Rc::new(RefCell::new(create_audio_decoder())));
-                on_tick.borrow()();
+                on_action.borrow()(host_store::Msg::AddClient(user_id));
             }
         };
 
@@ -70,11 +54,11 @@ impl HostManager {
             let players = self.players.clone();
             let decoders = self.decoders.clone();
             let audio_decoders = self.audio_decoders.clone();
-            let on_tick = on_tick.clone();
+            let on_tick = on_action.clone();
             move |user_id: UserId, message: ClientMessage| { 
                 match message {
                     ClientMessage::ClientText { message: _ } => {
-                        on_tick.borrow()();
+                        // on_tick.borrow()();
                     },
                     ClientMessage::ClientVideo { 
                         message,
@@ -109,7 +93,7 @@ impl HostManager {
                         let video_id = create_video_id(user_id.to_string());
                         let client_logo_id = create_video_id(format!("{}_{}", "client-video-logo", user_id.to_string()));
                         on_visible_el(message, &video_id, &client_logo_id);
-                        on_tick.borrow()();
+                        // on_tick.borrow()();
                     },
                     ClientMessage::ClientToClient { 
                         message,
@@ -141,7 +125,7 @@ impl HostManager {
                             },
                         }
                         
-                        on_tick.borrow()();
+                        // on_tick.borrow()();
                                                 
                     },
                     ClientMessage::ClientSwitchArea { 
@@ -158,15 +142,22 @@ impl HostManager {
                             None => todo!(),
                         }
                         
-                        on_tick.borrow()();
+                        // on_tick.borrow()();
                     }
                 }            
             }
         };
 
         let on_disconnect_callback = {
-            move |_user_id: UserId| {
-                
+            let players = self.players.clone();
+            let on_tick = on_action.clone();
+            move |user_id: UserId| {
+                let box_id = format!("item-box-{}", user_id.clone());
+                players.borrow_mut()
+                    .remove(&user_id)
+                    .expect("cannot remove user");
+                remove_element(box_id);
+                // on_tick.borrow()();
             }
         };
         self.mini_server.start(on_open_callback, on_message_callback, on_disconnect_callback);

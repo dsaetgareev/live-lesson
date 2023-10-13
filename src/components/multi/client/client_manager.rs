@@ -93,6 +93,7 @@ impl ClientManager {
                         message,
                         area_kind
                     } => {
+                        log::error!("message {}", message);
                         match area_kind {
                             AreaKind::Editor => {
                                 client_props.borrow_mut().set_editor_content(message);

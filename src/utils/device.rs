@@ -10,8 +10,9 @@ use crate::{constants::{VIDEO_CODEC, AUDIO_CHANNELS, AUDIO_CODEC, AUDIO_SAMPLE_R
 
 use super::{dom::{get_window, get_document, get_element}, config::configure_audio_context};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum VideoElementKind {
+    HostBox,
     ClentBox,
     ReadyId,
 }
@@ -192,6 +193,29 @@ pub fn create_video_decoder_video(video_elem_id: String, el_kind: VideoElementKi
 
 fn create_video_element(video_elem_id: String, el_kind: VideoElementKind) -> HtmlVideoElement {
     match el_kind {
+        VideoElementKind::HostBox => {
+            let video_element = get_document()
+                .create_element("video")
+                .expect("cannot create video element")
+                .dyn_into::<web_sys::HtmlVideoElement>()
+                .expect("cannot cast video element");
+
+            video_element.set_id(&video_elem_id);
+            video_element.set_class_name("item-canvas");
+            video_element.set_autoplay(true);
+            let box_id = format!("item-box-{}", video_elem_id);
+            let div = match get_element(&box_id) {
+                Ok(element) => {
+                    element
+                },
+                Err(_) => {
+                    get_element("client-items").unwrap()
+                },
+            };
+            // let div = get_element("client-items").unwrap();
+            let _ = div.append_child(&video_element);
+            video_element
+        }
         VideoElementKind::ClentBox => {
             let video_element = get_document()
                 .create_element("video")

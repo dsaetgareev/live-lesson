@@ -14,14 +14,11 @@ pub struct ClientProps {
 }
 
 impl ClientProps {
-    pub fn new(
-        client_content: String,
-        client_id: String,
-    ) -> Self {
+    pub fn new() -> Self {
         Self { 
-            client_editor_content: client_content,
+            client_editor_content: String::default(),
             client_text_area: TextAreaProps::new(),
-            client_id,
+            client_id: String::default(),
             is_write: false,
             client_area_kind: AreaKind::TextArea,
             paint_props: PaintProps::new(),  
