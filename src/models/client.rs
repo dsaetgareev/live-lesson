@@ -3,7 +3,7 @@ use yew::Properties;
 use super::commons::{AreaKind, TextAreaProps, PaintProps};
 
 
-#[derive(PartialEq, Properties)]
+#[derive(Clone, PartialEq, Properties)]
 pub struct ClientProps {
     pub client_editor_content: String,
     pub client_text_area: TextAreaProps,
@@ -35,6 +35,10 @@ impl ClientProps {
 
     pub fn set_area_kind(&mut self, area_kind: AreaKind) {
         self.client_area_kind = area_kind;
+    }
+
+    pub fn set_client_id(&mut self, client_id: String) {
+        self.client_id = client_id;
     }
 }
 

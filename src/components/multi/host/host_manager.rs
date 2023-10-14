@@ -2,12 +2,12 @@ use std::{collections::HashMap, cell::RefCell, rc::Rc, sync::Arc};
 
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
 
-use crate::{ utils::{inputs::{Message, ClientMessage}, dom::{create_video_id, on_visible_el, remove_element}, device::{ create_audio_decoder, create_video_decoder_video, VideoElementKind }}, models::{video::Video, client::{ClientProps, ClientItem}, host::HostPorps, commons::AreaKind, audio::Audio, packet::AudioPacket}, stores::host_store};
+use crate::{models::{client::ClientItem, video::Video, audio::Audio}, stores::host_store, utils::{dom::{create_video_id, remove_element}, device::{create_video_decoder_video, VideoElementKind, create_audio_decoder}, inputs::ClientMessage}};
 
 #[derive(Clone, PartialEq)]
 pub struct HostManager {
     pub players: Rc<RefCell<HashMap<UserId, ClientItem>>>,
-    pub decoders: Rc<RefCell<HashMap<UserId, Rc<RefCell<Video>>>>>,
+    pub video_decoders: Rc<RefCell<HashMap<UserId, Rc<RefCell<Video>>>>>,
     pub audio_decoders: Rc<RefCell<HashMap<UserId, Rc<RefCell<Audio>>>>>,
     pub mini_server: MiniServer,
 }
@@ -26,12 +26,12 @@ impl HostManager {
         let mini_server = MiniServer::new(signaling_server_url, session_id, connection_type)
         .expect("failed to create network manager");
         let players = Rc::new(RefCell::new(HashMap::new()));
-        let decoders = Rc::new(RefCell::new(HashMap::new()));
+        let video_decoders = Rc::new(RefCell::new(HashMap::new()));
         let audio_decoders = Rc::new(RefCell::new(HashMap::new()));
         Self { 
             mini_server,
             players,
-            decoders,
+            video_decoders,
             audio_decoders,
          }
     }
@@ -39,31 +39,43 @@ impl HostManager {
     pub fn init(
         &mut self,
         on_action: impl Fn(host_store::Msg) + 'static,
-        host_props: Rc<RefCell<HostPorps>>,
-        client_props: Rc<RefCell<ClientProps>>,
     ) {
         let on_action  = Rc::new(RefCell::new(on_action));
         let on_open_callback = {
             let on_action = on_action.clone();
+            let video_decoders = self.video_decoders.clone();
+            let audio_decoders = self.audio_decoders.clone();
             move |user_id: UserId| {
+                let video_id = create_video_id(user_id.into_inner().to_string());
+                video_decoders.borrow_mut()
+                    .insert(
+                        user_id,
+                        Rc::new(RefCell::new(create_video_decoder_video(video_id, VideoElementKind::HostBox)))
+                    );
+                audio_decoders.borrow_mut()
+                    .insert(user_id, Rc::new(RefCell::new(create_audio_decoder())));
                 on_action.borrow()(host_store::Msg::AddClient(user_id));
             }
         };
 
         let on_message_callback = {
-            let players = self.players.clone();
-            let decoders = self.decoders.clone();
+            let on_action = on_action.clone();
+            let video_decoders = self.video_decoders.clone();
             let audio_decoders = self.audio_decoders.clone();
-            let on_tick = on_action.clone();
             move |user_id: UserId, message: ClientMessage| { 
                 match message {
+                    ClientMessage::InitClient { 
+                        message
+                    } => {
+                        on_action.borrow()(host_store::Msg::InitClient(user_id, message));
+                    }
                     ClientMessage::ClientText { message: _ } => {
                         // on_tick.borrow()();
                     },
                     ClientMessage::ClientVideo { 
                         message,
                     } => {
-                        let video = decoders.as_ref().borrow().get(&user_id).unwrap().clone();
+                        let video = video_decoders.as_ref().borrow().get(&user_id).unwrap().clone();
                         let mut video = video.as_ref().borrow_mut();
                         let _ = video.decode_break(Arc::new(message));
                     },
@@ -71,78 +83,23 @@ impl HostManager {
                         packet
                     } => {
                         let audio = audio_decoders.as_ref().borrow().get(&user_id).unwrap().clone();
-                        
-                        let encoded_audio_chunk = AudioPacket::get_encoded_audio_chunk(packet);
-                        let state = audio.borrow().audio_decoder.state();
-                        match state {
-                            web_sys::CodecState::Unconfigured => {
-                                log::info!("audio decoder unconfigured");
-                            },
-                            web_sys::CodecState::Configured => {
-                                audio.borrow().audio_decoder.decode(&encoded_audio_chunk);
-                            },
-                            web_sys::CodecState::Closed => {
-                                log::info!("audio_decoder closed");
-                            },
-                            _ => {}
-                        }    
+                        audio.borrow().decode(packet);
                     }
                     ClientMessage::ClientSwitchVideo { 
                         message
                     } => {
-                        let video_id = create_video_id(user_id.to_string());
-                        let client_logo_id = create_video_id(format!("{}_{}", "client-video-logo", user_id.to_string()));
-                        on_visible_el(message, &video_id, &client_logo_id);
-                        // on_tick.borrow()();
+                        on_action.borrow()(host_store::Msg::ClientSwitchVideo(user_id, message));
                     },
                     ClientMessage::ClientToClient { 
                         message,
                         area_kind
                     } => {
-                       
-                        match players.as_ref().borrow_mut().get_mut(&user_id) {
-                            Some(client_item) => {
-                                client_item.set_area_kind(area_kind);
-                                match area_kind {
-                                    AreaKind::Editor => {
-                                        client_item.set_editor_content(message.clone());
-                                        if client_props.borrow().client_id == user_id.to_string() {
-                                            client_props.borrow_mut().set_editor_content(message);
-                                            client_props.borrow_mut().is_write = true;
-                                        }
-                                    },
-                                    AreaKind::TextArea => {
-                                        client_item.set_text_area_content(message.clone());
-                                        if client_props.borrow().client_id == user_id.to_string() {
-                                            client_props.borrow_mut().set_text_area_content(message);
-                                        }
-                                    },
-                                }
-                                
-                            },
-                            None => {
-                                log::error!("cannot find client item, id: {}", user_id.to_string());
-                            },
-                        }
-                        
-                        // on_tick.borrow()();
-                                                
+                       on_action.borrow()(host_store::Msg::ClientToClient(user_id, message, area_kind));                                                
                     },
                     ClientMessage::ClientSwitchArea { 
                         message
                     } => {
-                        if client_props.borrow().client_id == user_id.to_string() {
-                            client_props.borrow_mut().set_area_kind(message);
-                        }
-
-                        match players.as_ref().borrow_mut().get_mut(&user_id) {
-                            Some(client_item) => {
-                                client_item.set_area_kind(message)
-                            },
-                            None => todo!(),
-                        }
-                        
-                        // on_tick.borrow()();
+                        on_action.borrow()(host_store::Msg::ClientSwitchArea(user_id, message));
                     }
                 }            
             }
@@ -150,14 +107,37 @@ impl HostManager {
 
         let on_disconnect_callback = {
             let players = self.players.clone();
-            let on_tick = on_action.clone();
+            let on_action = on_action.clone();
+            let video_decoders = self.video_decoders.clone();
+            let audio_decoders = self.audio_decoders.clone();
             move |user_id: UserId| {
+                log::error!("dfdkfjdsfs {}", user_id);
                 let box_id = format!("item-box-{}", user_id.clone());
                 players.borrow_mut()
                     .remove(&user_id)
                     .expect("cannot remove user");
                 remove_element(box_id);
-                // on_tick.borrow()();
+                match video_decoders.borrow().get(&user_id) {
+                    Some(_video) => {
+                        video_decoders.borrow_mut()
+                            .remove(&user_id)
+                            .expect("cannot remove video");
+                    },
+                    None => {
+                        log::error!("not found video {}", user_id.to_string());
+                    },
+                }
+                match audio_decoders.borrow().get(&user_id) {
+                    Some(_audio) => {
+                        audio_decoders.borrow_mut()
+                            .remove(&user_id)
+                            .expect("cannot remove audio");
+                    },
+                    None => {
+                        log::error!("not found audio {}", user_id.to_string());
+                    },
+                }
+                on_action.borrow()(host_store::Msg::DisconnectClient(user_id));
             }
         };
         self.mini_server.start(on_open_callback, on_message_callback, on_disconnect_callback);

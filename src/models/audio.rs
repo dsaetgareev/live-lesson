@@ -1,6 +1,8 @@
 use web_sys::{AudioContext, GainNode, AudioDecoder};
 use yew::Properties;
 
+use super::packet::AudioPacket;
+
 
 #[derive(Debug, Clone, PartialEq, Eq, Properties)]
 pub struct Audio {
@@ -24,5 +26,22 @@ impl Audio {
             on_speakers: true,
             on_video: true,
         }
+    }
+
+    pub fn decode(&self, packet: AudioPacket) {
+        let encoded_audio_chunk = AudioPacket::get_encoded_audio_chunk(packet);
+        let state = self.audio_decoder.state();
+        match state {
+            web_sys::CodecState::Unconfigured => {
+                log::info!("audio decoder unconfigured");
+            },
+            web_sys::CodecState::Configured => {
+                self.audio_decoder.decode(&encoded_audio_chunk);
+            },
+            web_sys::CodecState::Closed => {
+                log::info!("audio_decoder closed");
+            },
+            _ => {}
+        }    
     }
 }

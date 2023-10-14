@@ -166,7 +166,7 @@ impl Component for Client {
 
                 let ms = self.client_manager.as_mut().unwrap().mini_client.clone();
                 let nm = self.client_manager.as_ref().unwrap().network_manager.clone();
-                let is_communication = self.host_props.borrow().is_communication.clone();
+                let is_communication = Rc::new(RefCell::new(self.host_props.borrow().is_communication)).clone();
                 let on_frame = move |packet: VideoPacket| {
                                        
                     let message = ClientMessage::ClientVideo { 
@@ -201,7 +201,7 @@ impl Component for Client {
 
                 let ms = self.client_manager.as_mut().unwrap().mini_client.clone();
                 let nm = self.client_manager.as_mut().unwrap().network_manager.clone();
-                let is_communication = self.host_props.borrow().is_communication.clone();
+                let is_communication = Rc::new(RefCell::new(self.host_props.borrow().is_communication)).clone();
                 let on_audio = move |chunk: web_sys::EncodedAudioChunk| {
                     
                     let audio_packet = AudioPacket::new(chunk);
@@ -263,7 +263,7 @@ impl Component for Client {
             
         };
 
-        let is_visible = get_vis_class(*(self.host_props.borrow().is_communication.borrow())); 
+        let is_visible = get_vis_class(self.host_props.borrow().is_communication); 
 
         html! {
             <div id="container" class="container">

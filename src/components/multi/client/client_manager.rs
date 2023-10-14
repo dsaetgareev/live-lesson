@@ -56,7 +56,7 @@ impl ClientManager {
         let on_tick  = Rc::new(RefCell::new(on_tick));
         let on_open_callback = {
             move || {
-               
+               log::error!("client manager on open");
             }
         };
 
@@ -113,7 +113,7 @@ impl ClientManager {
                         host_props.borrow_mut().host_area_content.set_content(text_area_content);
                         host_props.borrow_mut().set_editor_content(editor_content);
                         host_props.borrow_mut().set_host_area_kind(area_kind);
-                        host_props.borrow_mut().is_communication(is_communication);
+                        host_props.borrow_mut().set_communication(is_communication);
                         on_tick.borrow()();
                     },
                     Message::HostVideo { 
@@ -267,7 +267,7 @@ impl ClientManager {
                         message
                     } => {
                         switch_visible_el(message, "video-box");
-                        host_props.borrow().is_communication.replace(message);
+                        host_props.borrow_mut().set_communication(message);
                     }
                 }
             } 

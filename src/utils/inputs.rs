@@ -1,8 +1,8 @@
 use serde::{Serialize, Deserialize};
 
-use crate::models::{packet::{VideoPacket, AudioPacket}, commons::AreaKind};
+use crate::models::{packet::{VideoPacket, AudioPacket}, commons::{AreaKind, InitUser}};
 
-#[derive(Serialize, Deserialize)]
+#[derive(PartialEq, Serialize, Deserialize)]
 pub enum PaintAction {
     Down,
     Move,
@@ -55,6 +55,10 @@ pub enum Message {
 
 #[derive(Serialize, Deserialize)]
 pub enum ClientMessage {
+    InitClient {
+        message: InitUser,
+    },    
+
     ClientText {
         message: String,
     },

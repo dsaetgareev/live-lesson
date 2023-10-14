@@ -36,7 +36,7 @@ impl VideoPacket {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Serialize, Deserialize, Clone)]
 pub struct AudioPacket {
     pub data: Vec<u8>,
     pub chunk_type: String,

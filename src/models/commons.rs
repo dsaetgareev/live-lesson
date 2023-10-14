@@ -7,7 +7,7 @@ pub enum AreaKind {
     TextArea
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct TextAreaProps {
     pub content: String,
     pub placeholder: String,
@@ -32,7 +32,7 @@ impl TextAreaProps {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct PaintProps {
     pub offset_x: f64,
     pub offset_y: f64
@@ -53,4 +53,12 @@ impl PaintProps {
     pub fn set_offset_y(&mut self, y: f64) {
         self.offset_y = y;
     }
+}
+
+#[derive(PartialEq, Clone, Serialize, Deserialize, Debug)]
+pub struct InitUser {
+    pub editor_content: String,
+    pub text_area_content: String,
+    pub area_kind: AreaKind,
+    pub is_communication: bool,
 }

@@ -8,6 +8,7 @@ use yew::prelude::*;
 
 use wasm_bindgen::JsCast;
 
+
 fn get_options() -> CodeEditorOptions {
     CodeEditorOptions::default()
         .with_language("rust".to_owned())
@@ -50,8 +51,7 @@ pub fn custom_editor(props: &CustomEditorProps) -> Html {
 
 #[function_component(EditorWrapper)]
 pub fn editor_wrapper(props: &EditorWrapperProps) -> Html {
-    // We need to create a new text model, so we can pass it to Monaco.
-    // We use use_state_eq, as this allows us to only use it when it changes.
+
     let text_model = use_state_eq(|| props.text_model.clone());
     // let text_model = props.text_model.clone();
     if props.is_write {

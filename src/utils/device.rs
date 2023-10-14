@@ -201,7 +201,7 @@ fn create_video_element(video_elem_id: String, el_kind: VideoElementKind) -> Htm
                 .expect("cannot cast video element");
 
             video_element.set_id(&video_elem_id);
-            video_element.set_class_name("item-canvas");
+            video_element.set_class_name("item-canvas vis");
             video_element.set_autoplay(true);
             let box_id = format!("item-box-{}", video_elem_id);
             let div = match get_element(&box_id) {
@@ -213,7 +213,7 @@ fn create_video_element(video_elem_id: String, el_kind: VideoElementKind) -> Htm
                 },
             };
             // let div = get_element("client-items").unwrap();
-            let _ = div.append_child(&video_element);
+            let _ = div.append_child(&video_element);           
             video_element
         }
         VideoElementKind::ClentBox => {
