@@ -51,10 +51,9 @@ pub fn custom_editor(props: &CustomEditorProps) -> Html {
 
 #[function_component(EditorWrapper)]
 pub fn editor_wrapper(props: &EditorWrapperProps) -> Html {
-
     let text_model = use_state_eq(|| props.text_model.clone());
-    // let text_model = props.text_model.clone();
-    if props.is_write {
+    let is_write = props.is_write;
+    if is_write {
         text_model.set_value(&props.text_model.get_value());
     }
 

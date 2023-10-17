@@ -23,5 +23,7 @@ pub const VIDEO_WIDTH: i32 = 640i32;
 pub const SCREEN_VIDEO_HEIGHT: i32 = 1080i32;
 pub const SCREEN_VIDEO_WIDTH: i32 = 1920i32;
 
+pub const VIDEO_ELEMENT_ID: &str = "webcam";
+
 
 

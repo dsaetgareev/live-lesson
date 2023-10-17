@@ -2,7 +2,7 @@ use wasm_peers::get_random_session_id;
 use yew::{html, Html, function_component, use_state};
 use log::error;
 
-use crate::components::multi::client::welcome::Welcome;
+use crate::components::multi::client::welcome::WelcomeClient;
 use crate::components::multi::host::welcome::WelcomeHost;
 use crate::utils::dom::global_window;
 use crate::utils;
@@ -34,7 +34,7 @@ pub fn multi() -> Html {
             if *is_host {
                 <WelcomeHost />
             } else {
-                <Welcome />
+                <WelcomeClient />
             }
         </div>
     }

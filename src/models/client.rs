@@ -40,6 +40,10 @@ impl ClientProps {
     pub fn set_client_id(&mut self, client_id: String) {
         self.client_id = client_id;
     }
+
+    pub fn set_is_write(&mut self, is_write: bool) {
+        self.is_write = is_write;
+    }
 }
 
 #[derive(PartialEq, Clone, Properties)]

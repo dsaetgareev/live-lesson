@@ -7,9 +7,7 @@ use web_sys::{MouseEvent, HtmlElement, InputEvent, HtmlTextAreaElement};
 use yew::Callback;
 use yewdux::{store::{Reducer, Store}, prelude::Dispatch};
 
-use crate::{components::multi::{host::host_manager::HostManager, draw}, encoders::{microphone_encoder::MicrophoneEncoder, camera_encoder::CameraEncoder, screen_encoder::ScreenEncoder}, models::{host::HostPorps, client::{ClientProps, ClientItem}, packet::{AudioPacket, VideoPacket}, commons::{AreaKind, InitUser}, video::Video, audio::Audio}, stores::host_store, utils::{inputs::Message, dom::{create_video_id, on_visible_el}}};
-
-const VIDEO_ELEMENT_ID: &str = "webcam";
+use crate::{components::multi::{host::host_manager::HostManager, draw}, encoders::{microphone_encoder::MicrophoneEncoder, camera_encoder::CameraEncoder, screen_encoder::ScreenEncoder}, models::{host::HostPorps, client::{ClientProps, ClientItem}, packet::{AudioPacket, VideoPacket}, commons::{AreaKind, InitUser}, video::Video, audio::Audio}, stores::host_store, utils::{inputs::Message, dom::{create_video_id, on_visible_el}}, constants::VIDEO_ELEMENT_ID};
 
 #[derive(Clone, PartialEq, Store)]
 pub struct HostStore {
@@ -101,7 +99,7 @@ impl HostStore {
     }
 
     pub fn get_client_props(&self) -> &ClientProps {
-        self.client_props .as_ref().unwrap()
+        self.client_props.as_ref().unwrap()
     }
 
     pub fn get_mut_client_props(&mut self) -> &mut ClientProps {
@@ -142,8 +140,8 @@ pub enum Msg {
 }
 
 impl Reducer<HostStore> for Msg {
-    fn apply(self, mut counter: Rc<HostStore>) -> Rc<HostStore> {
-        let state = Rc::make_mut(&mut counter);
+    fn apply(self, mut store: Rc<HostStore>) -> Rc<HostStore> {
+        let state = Rc::make_mut(&mut store);
         let dispatch = Dispatch::<HostStore>::new();
 
         match self {
@@ -155,11 +153,14 @@ impl Reducer<HostStore> for Msg {
                 let text_area_content = state.get_host_props().host_area_content.content.clone();
                 let area_kind = state.get_host_props().host_area_kind;
                 let is_communication = state.get_host_props().is_communication;
-                let message = Message::Init { 
+                let init_user = InitUser {
                     editor_content,
                     text_area_content,
                     area_kind: area_kind.clone(),
                     is_communication
+                };
+                let message = Message::Init { 
+                    message: init_user,      
                 };
                 state.get_mini_server()
                     .send_message(user_id, &message)
@@ -441,7 +442,7 @@ impl Reducer<HostStore> for Msg {
             
         };
 
-        counter
+        store
     }
 
 }

@@ -12,10 +12,7 @@ pub enum PaintAction {
 #[derive(Serialize, Deserialize)]
 pub enum Message {
     Init {
-        editor_content: String,
-        text_area_content: String,
-        area_kind: AreaKind,
-        is_communication: bool,
+        message: InitUser
     },
     HostToHost {
         message: String,

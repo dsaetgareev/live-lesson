@@ -1,78 +1,46 @@
-use std::{rc::Rc, cell::RefCell};
-
 use monaco::api::TextModel;
-use yew::{Component, Properties, Callback, html};
+use yew::{Callback, html, Html, function_component};
+use yewdux::prelude::use_store;
 
-use crate::{models::{commons::AreaKind, host::HostPorps}, components::editor::editor::EditorWrapper};
+use crate::{models::commons::AreaKind, components::editor::editor::EditorWrapper, stores::client::host_props_store::HostPropsStore};
 
 const TEXTAREA_ID: &str = "document-textarea";
 
-pub enum Msg {
-    UpdateValue(String),
-    Tick,
-    SwitchArea(AreaKind),
-}
+#[function_component(HostArea)]
+pub fn host_area() -> Html {
+    let (state, _dispatch) = use_store::<HostPropsStore>();
 
-#[derive(PartialEq, Properties)]
-pub struct HostAreaProps {
-    pub host_props: Rc<RefCell<HostPorps>>,
-    pub area_kind: AreaKind, // costy'l
-    pub editor_content: String,
-    pub text_area_content: String,
-}
-
-
-pub struct HostArea {
-    pub host_props: Rc<RefCell<HostPorps>>,
-}
-
-impl Component for HostArea {
-    type Message = ();
-
-    type Properties = HostAreaProps;
-
-    fn create(ctx: &yew::Context<Self>) -> Self {
-        Self { 
-            host_props: ctx.props().host_props.clone()
-        }
-    }
-
-    fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
-        let text_model = TextModel::create(&ctx.props().editor_content, Some("java"), None).unwrap();
-        let on_host_editor_cb = Callback::from(|_content: String| log::info!("jkdjf"));
-
-        let render = || {
-            match self.host_props.clone().borrow().host_area_kind {
-                AreaKind::Editor => {
-                    html! {
-                        <div class="col document">
-                            <EditorWrapper on_cb={ on_host_editor_cb.clone() } text_model={ text_model.clone() } is_write={ true }/>
-                        </div>
-                    }
-                },
-                AreaKind::TextArea => {
-                    
-                    let value = ctx.props().text_area_content.clone();
-
-                    html! {
-                        <div class="col document">
-                            <textarea id={ TEXTAREA_ID } value={ value } class="document" cols="100" rows="30" />
-                        </div>
-                    }
-                },
-            }
-        };
-       
-        html! {
-            <>
-                <div class="host-content-box">
-                    { render() }
-                    <div id="host-paint" class="host-paint">
-
+    let render = || {
+        match state.get_host_props().host_area_kind {
+            AreaKind::Editor => {
+                let text_model = TextModel::create(&state.get_host_props().host_editor_content, Some("java"), None).unwrap();
+                let on_host_editor_cb = Callback::default();
+                html! {
+                    <div class="col document">
+                        <EditorWrapper on_cb={ on_host_editor_cb.clone() } text_model={ text_model.clone() } is_write={ true }/>
                     </div>
-                </div>
+                }
+            },
+            AreaKind::TextArea => {
                 
-            </>
+                let value = state.get_host_props().host_area_content.content.clone();
+                html! {
+                    <div class="col document">
+                        <textarea id={ TEXTAREA_ID } value={ value } class="document" cols="100" rows="30" />
+                    </div>
+                }
+            },
         }
-    }
+    };
+   
+    html! {
+        <>
+            <div class="host-content-box">
+                { render() }
+                <div id="host-paint" class="host-paint">
+                </div>
+            </div>
+            
+        </>
+    }    
 }

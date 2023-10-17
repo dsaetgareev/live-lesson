@@ -25,7 +25,7 @@ pub fn host_area() -> Html {
                 let text_model = TextModel::create(&state.get_host_props().host_editor_content, Some("java"), None).unwrap();
                 html! {
                     <div class="document">
-                        <EditorWrapper on_cb={ on_host_editor_cb.clone() } text_model={ text_model.clone() } is_write={ true }/>
+                        <EditorWrapper on_cb={ on_host_editor_cb.clone() } text_model={ text_model.clone() } is_write={ false }/>
                     </div>
                 }
             },
