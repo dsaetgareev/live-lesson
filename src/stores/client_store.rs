@@ -4,7 +4,7 @@ use yewdux::{store::{Store, Reducer}, prelude::Dispatch};
 
 use crate::{components::multi::client::client_manager::ClientManager, models::{audio::Audio, commons::{AreaKind, InitUser}}, utils::inputs::{ClientMessage, ManyMassage, PaintAction}};
 
-use super::{client::{client_props_store::{ClientPropsStore, ClientPropsMsg}, host_props_store::{HostPropsStore, HostPropsMsg}}, media_store::{MediaStore, MediaMsg}};
+use super::{client_props_store::{ClientPropsStore, ClientPropsMsg}, host_props_store::{HostPropsStore, HostPropsMsg}, media_store::{MediaStore, ClientMediaMsg}};
 
 #[derive(Clone, PartialEq, Store)]
 pub struct ClientStore {
@@ -81,6 +81,7 @@ pub enum ClientMsg {
     OnCummunication {
         message: bool
     }
+    // Client manager action
 }
 
 impl Reducer<ClientStore> for ClientMsg {
@@ -139,7 +140,7 @@ impl Reducer<ClientStore> for ClientMsg {
                 host_props_dispatch.apply(HostPropsMsg::HostPaint { offset_x, offset_y, action })
             }
             ClientMsg::OnCummunication { message } => {
-                media_dispatch.apply(MediaMsg::OnCummunication(message));
+                media_dispatch.apply(ClientMediaMsg::OnCummunication(message));
             }
         }
         store

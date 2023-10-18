@@ -5,7 +5,7 @@ use yew::{html, Callback, Html, function_component};
 use yew_icons::{Icon, IconId};
 use yewdux::prelude::use_store;
 
-use crate::{models::commons::AreaKind, components::editor::editor::EditorWrapper, stores::host_store::{HostStore, self}};
+use crate::{models::commons::AreaKind, components::editor::editor::EditorWrapper, stores::host_props_store::{HostHostMsg, HostPropsStore}};
 
 
 const TEXTAREA_ID: &str = "document-textarea";
@@ -13,14 +13,14 @@ const TEXTAREA_ID: &str = "document-textarea";
 
 #[function_component(HostArea)]
 pub fn host_area() -> Html {
-    let (state, dispatch) = use_store::<HostStore>();
+    let (state, dispatch) = use_store::<HostPropsStore>();
     let render = || {
-        let area_kind = state.host_props.as_ref().unwrap().host_area_kind;
+        let area_kind = state.get_host_props().host_area_kind;
         match area_kind {
             AreaKind::Editor => {
                 let on_host_editor_cb = {
                     let dispatch = dispatch.clone();
-                    Callback::from(move |content: String| dispatch.apply(host_store::Msg::HostUpdateValue(content)))
+                    Callback::from(move |content: String| dispatch.apply(HostHostMsg::HostUpdateValue(content)))
                 };
                 let text_model = TextModel::create(&state.get_host_props().host_editor_content, Some("java"), None).unwrap();
                 html! {
@@ -33,7 +33,7 @@ pub fn host_area() -> Html {
                 let oninput = {
                     let dispatch = dispatch.clone();
                     move |e: InputEvent| {
-                        dispatch.apply(host_store::Msg::HostTextAreaInput(e));
+                        dispatch.apply(HostHostMsg::HostTextAreaInput(e));
                     }
                 };
                 let value = state.get_host_props().host_area_content.content.clone();
@@ -66,30 +66,30 @@ pub fn host_area() -> Html {
 
 #[function_component(HostButtonBar)]
 pub fn host_button_bar() -> Html {
-    let (state, dispatch) = use_store::<HostStore>();
+    let (state, dispatch) = use_store::<HostPropsStore>();
 
     let editor_click = {
         let dispatch = dispatch.clone();
         move |_e: MouseEvent| {
-            dispatch.apply(host_store::Msg::SwitchHostArea(AreaKind::Editor));
+            dispatch.apply(HostHostMsg::SwitchHostArea(AreaKind::Editor));
         }
     };
     let text_area_click = {
         let dispatch = dispatch.clone();
         move |_e: MouseEvent| {
-            dispatch.apply(host_store::Msg::SwitchHostArea(AreaKind::TextArea));
+            dispatch.apply(HostHostMsg::SwitchHostArea(AreaKind::TextArea));
         }
     };
     let paint_click = {
         let dispatch = dispatch.clone();
         move |_e: MouseEvent| {
-            dispatch.apply(host_store::Msg::OpenPaint);
+            dispatch.apply(HostHostMsg::OpenPaint);
         }
     };
     let on_communication = {
         let dispatch = dispatch.clone();
         move |_e: MouseEvent| {
-            dispatch.apply(host_store::Msg::OnCummunication);
+            dispatch.apply(HostHostMsg::OnCummunication);
         }
     };
 

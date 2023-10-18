@@ -5,7 +5,7 @@ use web_sys::{InputEvent, HtmlTextAreaElement};
 use yew::prelude::*;
 use yewdux::prelude::*;
 
-use crate::{models::commons::AreaKind, components::editor::editor::EditorWrapper, stores::host_store::{HostStore, self}};
+use crate::{models::commons::AreaKind, components::editor::editor::EditorWrapper, stores::client_props_store::{ClientPropsStore, HostClientMsg}};
 
 const TEXTAREA_ID_CLIENT: &str = "client-textarea";
 
@@ -17,19 +17,17 @@ pub enum Msg {
 #[function_component(ClientArea)]
 pub fn client_area() -> Html {
 
-    let (state, dispatch) = use_store::<HostStore>();     
+    let (state, dispatch) = use_store::<ClientPropsStore>();     
 
     let on_host_editor_cb = {
         let dispatch = dispatch.clone();
-        Callback::from(move |content: String| dispatch.apply(host_store::Msg::HostClientToClient(content)))
+        Callback::from(move |content: String| dispatch.apply(HostClientMsg::HostClientToClient(content)))
     };
 
     let render = || {
         let area_kind = state.get_client_props().client_area_kind;
-        log::error!("cleent area {:?}", area_kind);
         match area_kind {
             AreaKind::Editor => {
-                log::error!("im editor");
                 let text_model = TextModel::create(&state.get_client_props().client_editor_content, Some("java"), None).unwrap();
        
                 let is_write = state.get_client_props().is_write;

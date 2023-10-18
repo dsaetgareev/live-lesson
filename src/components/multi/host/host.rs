@@ -5,10 +5,9 @@ use yewdux::prelude::use_store;
 use crate::components::multi::host::client_area::ClientArea;
 use crate::components::multi::host::client_items::ClientItems;
 use crate::components::multi::host::host_area::HostArea;
+use crate::constants::VIDEO_ELEMENT_ID;
 use crate::media_devices::device_selector::DeviceSelector;
-use crate::stores::host_store::{HostStore, self};
-
-const VIDEO_ELEMENT_ID: &str = "webcam";
+use crate::stores::media_store::{MediaStore, ClientMediaMsg, HostMediaMsg};
 
 pub enum Msg {
     Init,
@@ -20,17 +19,17 @@ pub enum Msg {
 
 #[function_component(Devices)]
 pub fn devices() -> Html {
-    let (_state, dispatch) = use_store::<HostStore>();
+    let (_state, dispatch) = use_store::<MediaStore>();
     let mic_callback: Callback<String> = {
         let dispatch = dispatch.clone();
         Callback::from(move |audio| {
-            dispatch.apply(host_store::Msg::AudioDeviceChanged(audio))
+            dispatch.apply(ClientMediaMsg::AudioDeviceChanged(audio))
         })
     };
     let cam_callback = {
         let dispatch = dispatch.clone();
         Callback::from(move |video| {
-            dispatch.apply(host_store::Msg::VideoDeviceChanged(video));
+            dispatch.apply(ClientMediaMsg::VideoDeviceChanged(video));
         })
     };
     html! {
@@ -42,10 +41,10 @@ pub fn devices() -> Html {
 
 #[function_component(ScreenShare)]
 pub fn screen_share() -> Html {
-    let (_state, dispatch) = use_store::<HostStore>();
+    let (_state, dispatch) = use_store::<MediaStore>();
     let screen_share_cb = {
         Callback::from(move |_| {
-            dispatch.apply(host_store::Msg::EnableScreenShare(true));
+            dispatch.apply(HostMediaMsg::EnableScreenShare(true));
         })
     };
     html! {

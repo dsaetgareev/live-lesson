@@ -3,7 +3,7 @@ use yew::{Properties, html, Html, Callback, function_component, use_effect};
 use yew_icons::{Icon, IconId};
 use yewdux::prelude::use_store;
 
-use crate::{utils::dom::{create_video_id, get_element}, models::commons::AreaKind, stores::host_store::{HostStore, self}};
+use crate::{utils::dom::{create_video_id, get_element}, models::commons::AreaKind, stores::client_items_store::{ClientItemsStore, ClientItemMsg}};
 
 
 #[derive(Properties, PartialEq)]
@@ -15,7 +15,7 @@ pub struct ItemPorps {
 
 #[function_component(ClientBox)]
 pub fn client_box(props: &ItemPorps) -> Html {
-    let (_state, dispatch) = use_store::<HostStore>();
+    let (_state, dispatch) = use_store::<ClientItemsStore>();
     let key = props.key_id.clone();
     let value = props.value.clone();
     let client_id = key.clone();
@@ -23,7 +23,6 @@ pub fn client_box(props: &ItemPorps) -> Html {
     let box_id = format!("item-box-{}", key.clone());
 
     use_effect({
-        log::error!("use efff");
         let box_id = box_id.clone();
         let client_id = client_id.clone();
         move || {
@@ -36,21 +35,21 @@ pub fn client_box(props: &ItemPorps) -> Html {
     let item_click = {
         let dispatch = dispatch.clone();
         move |e: MouseEvent| {
-            dispatch.apply(host_store::Msg::ChooseItem(e));
+            dispatch.apply(ClientItemMsg::ChooseItem(e));
         }
     };
     let on_switch_video = {
         let dispatch = dispatch.clone();
         let video_switch_id = client_id.clone();
         Callback::from(move |_| {
-            dispatch.apply(host_store::Msg::SwitchVideo(video_switch_id.clone()));
+            dispatch.apply(ClientItemMsg::SwitchVideo(video_switch_id.clone()));
         })
     };
     let on_switch_speakers = {
         let dispatch = dispatch.clone();
         let speakers_id = client_id.clone();
         Callback::from(move |_| {
-            dispatch.apply(host_store::Msg::SwitchSpeakers(speakers_id.clone()));
+            dispatch.apply(ClientItemMsg::SwitchSpeakers(speakers_id.clone()));
         })
     };
     html! {
@@ -78,12 +77,11 @@ pub fn client_box(props: &ItemPorps) -> Html {
 #[function_component(ClientItems)]
 pub fn client_items() -> Html {
 
-    let (state, _dispatch) = use_store::<HostStore>();
+    let (state, _dispatch) = use_store::<ClientItemsStore>();
 
     let render = || {
         log::error!("clent items");
-        let players = &state
-            .players;
+        let players = state.get_players();
 
         players
             .clone()

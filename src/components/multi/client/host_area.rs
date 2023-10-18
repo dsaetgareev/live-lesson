@@ -2,7 +2,7 @@ use monaco::api::TextModel;
 use yew::{Callback, html, Html, function_component};
 use yewdux::prelude::use_store;
 
-use crate::{models::commons::AreaKind, components::editor::editor::EditorWrapper, stores::client::host_props_store::HostPropsStore};
+use crate::{models::commons::AreaKind, components::editor::editor::EditorWrapper, stores::host_props_store::HostPropsStore};
 
 const TEXTAREA_ID: &str = "document-textarea";
 

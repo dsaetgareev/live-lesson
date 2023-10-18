@@ -8,7 +8,7 @@ use crate::components::multi::client::client_area::ClientArea;
 use crate::components::multi::client::host_area::HostArea;
 use crate::constants::VIDEO_ELEMENT_ID;
 use crate::stores::client_store::{ClientMsg, ClientStore};
-use crate::stores::media_store::{MediaMsg, MediaStore};
+use crate::stores::media_store::{ClientMediaMsg, MediaStore};
 use crate::utils::dom::get_vis_class;
 use crate::media_devices::device_selector::DeviceSelector;
 
@@ -19,13 +19,13 @@ pub fn devices() -> Html {
     let mic_callback: Callback<String> = {
         let dispatch = dispatch.clone();
         Callback::from(move |audio| {
-            dispatch.apply(MediaMsg::AudioDeviceChanged(audio))
+            dispatch.apply(ClientMediaMsg::AudioDeviceChanged(audio))
         })
     };
     let cam_callback = {
         let dispatch = dispatch.clone();
         Callback::from(move |video| {
-            dispatch.apply(MediaMsg::VideoDeviceChanged(video));
+            dispatch.apply(ClientMediaMsg::VideoDeviceChanged(video));
         })
     };
     html! {
@@ -45,7 +45,7 @@ pub fn item_content() -> Html {
     let on_video_btn = {
         let dispatch = dispatch.clone();
         Callback::from(move |event: MouseEvent| {
-            dispatch.apply(MediaMsg::SwitchVedeo(event));
+            dispatch.apply(ClientMediaMsg::SwitchVedeo(event));
         })
     };
 

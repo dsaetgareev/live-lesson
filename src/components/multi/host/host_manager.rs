@@ -111,7 +111,6 @@ impl HostManager {
             let video_decoders = self.video_decoders.clone();
             let audio_decoders = self.audio_decoders.clone();
             move |user_id: UserId| {
-                log::error!("dfdkfjdsfs {}", user_id);
                 let box_id = format!("item-box-{}", user_id.clone());
                 players.borrow_mut()
                     .remove(&user_id)

@@ -3,7 +3,7 @@ use yew::{Callback, html, Html, function_component};
 use yew_icons::{Icon, IconId};
 use yewdux::prelude::use_store;
 
-use crate::{models::commons::AreaKind, components::editor::editor::EditorWrapper, stores::client::client_props_store::{ClientPropsStore, ClientPropsMsg}};
+use crate::{models::commons::AreaKind, components::editor::editor::EditorWrapper, stores::client_props_store::{ClientPropsStore, ClientPropsMsg}};
 
 const TEXTAREA_ID_CLIENT: &str = "client-textarea";
 
