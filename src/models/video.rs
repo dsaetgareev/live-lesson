@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use js_sys::Uint8Array;
-use web_sys::{ VideoDecoder, VideoDecoderConfig, EncodedVideoChunk, EncodedVideoChunkInit, CodecState};
+use web_sys::{ VideoDecoder, VideoDecoderConfig, EncodedVideoChunk, EncodedVideoChunkInit, CodecState, HtmlVideoElement};
 
 use crate::{wrappers::EncodedVideoChunkTypeWrapper, utils::{device::{ create_video_decoder_video, VideoElementKind}, dom::remove_element}};
 
@@ -19,6 +19,7 @@ pub struct Video {
     pub sequence: Option<u64>,
     pub element_kind: VideoElementKind,
     pub require_key: bool,
+    pub video_element: HtmlVideoElement,
 }
 
 impl Video {
@@ -26,7 +27,8 @@ impl Video {
         video_decoder: VideoDecoder,
         video_config: VideoDecoderConfig,
         render_id: String,
-        element_kind: VideoElementKind
+        element_kind: VideoElementKind,
+        video_element: HtmlVideoElement,
     ) -> Self {
         Self {
             cache: BTreeMap::new(),
@@ -39,6 +41,7 @@ impl Video {
             sequence: None,
             element_kind,
             require_key: false,
+            video_element,
         }
     }
 

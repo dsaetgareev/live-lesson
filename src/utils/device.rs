@@ -17,122 +17,6 @@ pub enum VideoElementKind {
     ReadyId,
 }
 
-pub fn create_video_decoder(render_id: String) -> Video {
-    let error_video = Closure::wrap(Box::new(move |e: JsValue| {
-        error!("{:?}", e);
-    }) as Box<dyn FnMut(JsValue)>);
-
-    let ren_id  = render_id.clone();
-    let output = Closure::wrap(Box::new(move |original_chunk: JsValue| {
-        let chunk = Box::new(original_chunk);
-        let video_chunk = chunk.clone().unchecked_into::<HtmlImageElement>();
-
-        let width = Reflect::get(&chunk.clone(), &JsString::from("codedWidth"))
-                .unwrap()
-                .as_f64()
-                .unwrap();
-        let height = Reflect::get(&chunk.clone(), &JsString::from("codedHeight"))
-            .unwrap()
-            .as_f64()
-            .unwrap();
-
-        let render_canvas = get_window()
-            .unwrap()
-            .document()
-            .unwrap()
-            .get_element_by_id(&render_id)
-            .unwrap()
-            .unchecked_into::<HtmlCanvasElement>();
-
-        render_canvas.set_width(width as u32);
-        render_canvas.set_height(height as u32);
-
-        let ctx = render_canvas
-            .get_context("2d")
-            .unwrap()
-            .unwrap()
-            .unchecked_into::<CanvasRenderingContext2d>();
-
-        let _ = ctx.draw_image_with_html_image_element(
-            &video_chunk, 
-            0.0 as f64,
-            0.0 as f64
-        );
-        video_chunk.unchecked_into::<VideoFrame>().close();
-    }) as Box<dyn FnMut(JsValue)>);
-
-    let local_video_decoder = VideoDecoder::new(
-        &VideoDecoderInit::new(error_video.as_ref().unchecked_ref(), output.as_ref().unchecked_ref())
-    ).unwrap();
-    error_video.forget();
-    output.forget();
-    let video_config = VideoDecoderConfig::new(&VIDEO_CODEC);
-    local_video_decoder.configure(&video_config);
-    Video::new(local_video_decoder, video_config, ren_id, VideoElementKind::ReadyId)
-}
-
-
-pub fn create_video_decoder_frame(render_id: String) -> Video {
-    let r_id = render_id.clone();
-    let error_video = Closure::wrap(Box::new(move |e: JsValue| {
-        error!("errorrrrrr {}", r_id.clone());
-        error!("{:?}", e);
-    }) as Box<dyn FnMut(JsValue)>);
-    let ren_id = render_id.clone();
-    let frame_count = Rc::new(RefCell::new(0));
-    let output = Closure::wrap(Box::new(move |original_chunk: JsValue| {
-        *frame_count.borrow_mut() += 1;
-        let chunk = Box::new(original_chunk);
-        let video_chunk = chunk.clone().unchecked_into::<HtmlVideoElement>();
-        if *frame_count.borrow() % 3 == 0 {
-            
-            let width = Reflect::get(&chunk.clone(), &JsString::from("codedWidth"))
-                .unwrap()
-                .as_f64()
-                .unwrap();
-            let height = Reflect::get(&chunk.clone(), &JsString::from("codedHeight"))
-                .unwrap()
-                .as_f64()
-                .unwrap();
-
-            let render_canvas = get_window()
-                .unwrap()
-                .document()
-                .unwrap()
-                .get_element_by_id(&render_id)
-                .unwrap()
-                .unchecked_into::<HtmlCanvasElement>();
-
-            render_canvas.set_width(width as u32);
-            render_canvas.set_height(height as u32);
-
-            let ctx = render_canvas
-                .get_context("2d")
-                .unwrap()
-                .unwrap()
-                .unchecked_into::<CanvasRenderingContext2d>();
-
-            let _ = ctx.draw_image_with_html_video_element(
-                &video_chunk, 
-                0.0 as f64,
-                0.0 as f64
-            );
-        }
-        
-
-        video_chunk.unchecked_into::<VideoFrame>().close();
-    }) as Box<dyn FnMut(JsValue)>);
-
-    let local_video_decoder = VideoDecoder::new(
-        &VideoDecoderInit::new(error_video.as_ref().unchecked_ref(), output.as_ref().unchecked_ref())
-    ).unwrap();
-    error_video.forget();
-    output.forget();
-    let video_config = VideoDecoderConfig::new(&VIDEO_CODEC);
-    local_video_decoder.configure(&video_config);
-    Video::new(local_video_decoder, video_config, ren_id, VideoElementKind::ReadyId)
-}
-
 pub fn create_video_decoder_video(video_elem_id: String, el_kind: VideoElementKind) -> Video {
     
     let r_id = video_elem_id.clone();
@@ -188,7 +72,7 @@ pub fn create_video_decoder_video(video_elem_id: String, el_kind: VideoElementKi
     output.forget();
     let video_config = VideoDecoderConfig::new(&VIDEO_CODEC); 
     local_video_decoder.configure(&video_config);
-    Video::new(local_video_decoder, video_config, r_id, el_kind)
+    Video::new(local_video_decoder, video_config, r_id, el_kind, video_element)
 }
 
 fn create_video_element(video_elem_id: String, el_kind: VideoElementKind) -> HtmlVideoElement {
@@ -204,16 +88,17 @@ fn create_video_element(video_elem_id: String, el_kind: VideoElementKind) -> Htm
             video_element.set_class_name("item-canvas vis");
             video_element.set_autoplay(true);
             let box_id = format!("item-box-{}", video_elem_id);
-            let div = match get_element(&box_id) {
+            match get_element(&box_id) {
                 Ok(element) => {
-                    element
+                    let _ = element.append_child(&video_element);
                 },
-                Err(_) => {
-                    get_element("client-items").unwrap()
+                Err(err) => {
+                    log::error!("not found {}, {}", box_id, err);
+                    get_element("client-items").unwrap();
                 },
             };
             // let div = get_element("client-items").unwrap();
-            let _ = div.append_child(&video_element);           
+                      
             video_element
         }
         VideoElementKind::ClentBox => {

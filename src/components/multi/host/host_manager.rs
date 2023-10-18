@@ -2,7 +2,7 @@ use std::{collections::HashMap, cell::RefCell, rc::Rc, sync::Arc};
 
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
 
-use crate::{models::{client::ClientItem, video::Video, audio::Audio}, stores::host_store, utils::{dom::{create_video_id, remove_element}, device::{create_video_decoder_video, VideoElementKind, create_audio_decoder}, inputs::ClientMessage}};
+use crate::{models::{client::ClientItem, video::Video, audio::Audio}, stores::host_store, utils::{dom::{create_video_id, remove_element}, device::{create_video_decoder_video, VideoElementKind, create_audio_decoder}, inputs::ClientMessage}, components::common::video};
 
 #[derive(Clone, PartialEq)]
 pub struct HostManager {
@@ -76,8 +76,14 @@ impl HostManager {
                         message,
                     } => {
                         let video = video_decoders.as_ref().borrow().get(&user_id).unwrap().clone();
-                        let mut video = video.as_ref().borrow_mut();
-                        let _ = video.decode_break(Arc::new(message));
+                        match video.clone().as_ref().try_borrow_mut() {
+                            Ok(mut video) => {
+                                let _ = video.decode_break(Arc::new(message));
+                            },
+                            Err(_) => {
+                                
+                            },
+                        }
                     },
                     ClientMessage::ClientAudio { 
                         packet
@@ -106,36 +112,44 @@ impl HostManager {
         };
 
         let on_disconnect_callback = {
-            let players = self.players.clone();
             let on_action = on_action.clone();
             let video_decoders = self.video_decoders.clone();
             let audio_decoders = self.audio_decoders.clone();
             move |user_id: UserId| {
-                let box_id = format!("item-box-{}", user_id.clone());
-                players.borrow_mut()
-                    .remove(&user_id)
-                    .expect("cannot remove user");
-                remove_element(box_id);
-                match video_decoders.borrow().get(&user_id) {
-                    Some(_video) => {
-                        video_decoders.borrow_mut()
-                            .remove(&user_id)
-                            .expect("cannot remove video");
+                log::error!("disconected {}", user_id);
+                
+                match video_decoders.try_borrow_mut() {
+                    Ok(mut video_decoders) => {
+                        match video_decoders.get(&user_id) {
+                            Some(_video) => {
+                                video_decoders
+                                    .remove(&user_id)
+                                    .expect("cannot remove video");
+                            },
+                            None => {
+                                log::error!("not found video {}", user_id.to_string());
+                            },
+                        }
                     },
-                    None => {
-                        log::error!("not found video {}", user_id.to_string());
-                    },
+                    Err(_) => todo!(),
                 }
-                match audio_decoders.borrow().get(&user_id) {
-                    Some(_audio) => {
-                        audio_decoders.borrow_mut()
-                            .remove(&user_id)
-                            .expect("cannot remove audio");
+
+                match audio_decoders.try_borrow_mut() {
+                    Ok(mut audio_decoders) => {
+                        match audio_decoders.get(&user_id) {
+                            Some(_audio) => {
+                                audio_decoders
+                                    .remove(&user_id)
+                                    .expect("cannot remove video");
+                            },
+                            None => {
+                                log::error!("not found video {}", user_id.to_string());
+                            },
+                        }
                     },
-                    None => {
-                        log::error!("not found audio {}", user_id.to_string());
-                    },
+                    Err(_) => todo!(),
                 }
+
                 on_action.borrow()(host_store::Msg::DisconnectClient(user_id));
             }
         };

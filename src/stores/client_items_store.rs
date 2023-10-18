@@ -5,7 +5,7 @@ use wasm_peers::UserId;
 use web_sys::{HtmlElement, MouseEvent};
 use yewdux::{store::{Store, Reducer}, prelude::Dispatch};
 
-use crate::models::{client::ClientItem, commons::{AreaKind, InitUser}};
+use crate::{models::{client::ClientItem, commons::{AreaKind, InitUser}}, utils::dom::{remove_element, create_video_id}};
 
 use super::client_props_store::{ClientPropsStore, HostClientMsg};
 
@@ -115,9 +115,11 @@ impl Reducer<ClientItemsStore> for ClientItemMsg {
             ClientItemMsg::DisconnectClient(user_id) => {
                 match state.players.get(&user_id) {
                     Some(_client_item) => {
+                        let box_id = format!("item-box-{}", create_video_id(user_id.to_string()));
                         state.players
                             .remove(&user_id)
                             .expect("cannot remove clietn");
+                        remove_element(box_id);
                     },
                     None => {
                         log::error!("not found client id: {}", user_id);

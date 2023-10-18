@@ -11,5 +11,5 @@ TURN_SERVER_USERNAME = "openrelay"
 TURN_SERVER_CREDENTIAL = "openrelay"
 
 # This is development only. Change it before deployment!
-SIGNALING_SERVER_URL = "ws://192.168.0.202:9001"
-#SIGNALING_SERVER_URL = "wss://live-lesson.ru"
+#SIGNALING_SERVER_URL = "ws://192.168.0.202:9001"
+SIGNALING_SERVER_URL = "wss://live-lesson.ru"

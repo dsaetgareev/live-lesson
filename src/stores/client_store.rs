@@ -42,7 +42,7 @@ impl ClientStore {
      pub fn get_mini_client(&self) -> MiniClient {
         self.client_manager
             .as_ref()
-            .expect("cannot get client manager")
+            .expect("cannot get the client manager")
             .mini_client
             .clone()
     }
@@ -50,7 +50,7 @@ impl ClientStore {
     pub fn get_many_network_manager(&self) -> NetworkManager {
         self.client_manager
             .as_ref()
-            .expect("cannot get client manager")
+            .expect("cannot get the networr manager")
             .network_manager
             .clone()
     }

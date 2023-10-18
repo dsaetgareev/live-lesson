@@ -184,6 +184,9 @@ impl ClientManager {
                     Message::OpenPaint => {
                         on_action.borrow()(ClientMsg::OpenPaint);
                     },
+                    Message::ClosePaint => {
+                        remove_element("draw-canvas".to_string());
+                    }
                     Message::HostPaint { 
                         offset_x,
                         offset_y,
@@ -264,11 +267,24 @@ impl ClientManager {
         let on_disconnect_callback = {
             let video_decoders = self.video_decoders.clone();
             move |user_id: UserId| {
-                video_decoders
-                    .borrow_mut()
-                    .remove(&user_id)
-                    .expect("cannot remove decoders");
-                remove_element(create_video_id(user_id.to_string()));
+
+                match video_decoders.try_borrow_mut() {
+                    Ok(mut video_decoders) => {
+                        match video_decoders.get(&user_id) {
+                            Some(_video) => {
+                                video_decoders
+                                    .remove(&user_id)
+                                    .expect("cannot remove video");
+
+                                remove_element(create_video_id(user_id.to_string()));
+                            },
+                            None => {
+                                log::error!("not found video {}", user_id.to_string());
+                            },
+                        }
+                    },
+                    Err(_) => todo!(),
+                }
             }
         };
         self.network_manager.start(on_open_callback, on_message_callback, on_disconnect_callback);

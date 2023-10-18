@@ -1,11 +1,13 @@
 
+use std::borrow::BorrowMut;
+
 use monaco::api::TextModel;
 use web_sys::{InputEvent, MouseEvent};
 use yew::{html, Callback, Html, function_component};
 use yew_icons::{Icon, IconId};
-use yewdux::prelude::use_store;
+use yewdux::prelude::{use_store, Dispatch};
 
-use crate::{models::commons::AreaKind, components::editor::editor::EditorWrapper, stores::host_props_store::{HostHostMsg, HostPropsStore}};
+use crate::{models::commons::AreaKind, components::{editor::editor::EditorWrapper, multi::draw::paint::PaintF}, stores::{host_props_store::{HostHostMsg, HostPropsStore}, host_store::{self, HostStore}}, utils::inputs::Message};
 
 
 const TEXTAREA_ID: &str = "document-textarea";
@@ -14,6 +16,7 @@ const TEXTAREA_ID: &str = "document-textarea";
 #[function_component(HostArea)]
 pub fn host_area() -> Html {
     let (state, dispatch) = use_store::<HostPropsStore>();
+    let global_dispatch = Dispatch::<HostStore>::new();
     let render = || {
         let area_kind = state.get_host_props().host_area_kind;
         match area_kind {
@@ -46,6 +49,31 @@ pub fn host_area() -> Html {
         }
     };
 
+    let render_paints = || {
+        let send_message_all_cb = {
+            let global_dispatch = global_dispatch.clone();
+            Callback::from(move |message: Message| {
+                global_dispatch.apply(host_store::Msg::SendMessage(message));
+            })
+        };
+        let out = state.get_paints_f()
+            .values()
+            .map(|content| {
+                html! {
+                    <>
+                        <PaintF
+                            content={ content.clone() }
+                            send_message_all_cb={send_message_all_cb.clone()}
+                            is_host={ true }
+
+                        />
+                    </>
+                }
+            })
+            .collect::<Html>();
+        out
+    };
+
 
     html! {
         <>
@@ -54,7 +82,7 @@ pub fn host_area() -> Html {
                 <div class="host-content-box">
                     { render() }
                     <div id="host-paint" class="host-paint">
-
+                        { render_paints() }
                     </div>
                 </div>
                 
@@ -63,6 +91,8 @@ pub fn host_area() -> Html {
         </>
     }
 }
+
+
 
 #[function_component(HostButtonBar)]
 pub fn host_button_bar() -> Html {

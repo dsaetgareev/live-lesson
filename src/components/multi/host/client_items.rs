@@ -1,14 +1,15 @@
+use wasm_peers::UserId;
 use web_sys::MouseEvent;
 use yew::{Properties, html, Html, Callback, function_component, use_effect};
 use yew_icons::{Icon, IconId};
 use yewdux::prelude::use_store;
 
-use crate::{utils::dom::{create_video_id, get_element}, models::commons::AreaKind, stores::client_items_store::{ClientItemsStore, ClientItemMsg}};
+use crate::{utils::dom::{create_video_id, get_element}, models::commons::AreaKind, stores::{client_items_store::{ClientItemsStore, ClientItemMsg}, host_store::HostStore}};
 
 
 #[derive(Properties, PartialEq)]
 pub struct ItemPorps {
-    pub key_id: String,
+    pub key_id: UserId,
     pub value: String,
 }
 
@@ -16,19 +17,31 @@ pub struct ItemPorps {
 #[function_component(ClientBox)]
 pub fn client_box(props: &ItemPorps) -> Html {
     let (_state, dispatch) = use_store::<ClientItemsStore>();
-    let key = props.key_id.clone();
+    let (global_state, _global_dispatch) = use_store::<HostStore>();
+    let key_id = props.key_id.clone();
+    let key = key_id.to_string();
     let value = props.value.clone();
     let client_id = key.clone();
     let client_logo_id = create_video_id(format!("{}_{}", "client-video-logo", key.clone()));    
-    let box_id = format!("item-box-{}", key.clone());
+    let box_id = format!("item-box-{}", create_video_id(key.clone()));
 
     use_effect({
+        log::error!("key key {}", key.clone());
+        log::error!("item bos {}", box_id.clone());
         let box_id = box_id.clone();
-        let client_id = client_id.clone();
+        let key_id = key_id.clone();
         move || {
             let box_div = get_element(&box_id).unwrap();
-            let video = get_element(&create_video_id(client_id)).unwrap();
-            let _ = box_div.append_child(&video);
+            match global_state.get_decoders().borrow().get(&key_id) {
+                Some(video) => {
+                    let video = &video.borrow().video_element;
+                    let _ = box_div.append_child(&video);
+                },
+                None => {
+                    log::error!("not video");
+                },
+            } 
+            
          }
     });
 
@@ -54,7 +67,7 @@ pub fn client_box(props: &ItemPorps) -> Html {
     };
     html! {
         <>
-            <div class="item-box">
+            <div key={ key.clone() } class="item-box">
                 <div id={ box_id } client_id={ client_id.clone() } class="col" onclick={ item_click.clone() }>
                     <textarea id={ key } client_id={ client_id.clone() } value={ value } class="doc-item" cols="100" rows="30" />
                     // <video id={ video_id } client_id={ client_id.clone() } autoplay=true class="item-canvas"></video>
@@ -66,8 +79,7 @@ pub fn client_box(props: &ItemPorps) -> Html {
                     <div id={ client_logo_id } class="unvis">
                         <Icon icon_id={IconId::FontAwesomeSolidHorseHead}/>
                     </div>
-                </div>
-                
+                </div>                
             </div>
             
         </>
@@ -93,14 +105,14 @@ pub fn client_items() -> Html {
                         AreaKind::Editor => {
                             html! {
                                 <>
-                                    <ClientBox key_id={ key.to_string() } value={ client_item.editor_content.clone() } />
+                                    <ClientBox key_id={ key } value={ client_item.editor_content.clone() } />
                                 </>
                             }
                         },
                         AreaKind::TextArea => {
                             html! {
                                 <>
-                                    <ClientBox key_id={ key.to_string() } value={ client_item.text_area_content.clone() } />
+                                    <ClientBox key_id={ key } value={ client_item.text_area_content.clone() } />
                                 </>
                             }
                             

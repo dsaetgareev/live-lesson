@@ -40,6 +40,7 @@ pub enum Message {
         message: AreaKind
     },
     OpenPaint,
+    ClosePaint,
     HostPaint {
         offset_x: f64,
         offset_y: f64,

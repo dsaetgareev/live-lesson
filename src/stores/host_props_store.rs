@@ -6,13 +6,14 @@ use web_sys::{HtmlCanvasElement, HtmlTextAreaElement, InputEvent};
 use yew::Callback;
 use yewdux::{store::{Store, Reducer}, prelude::Dispatch};
 
-use crate::{models::{host::HostPorps, commons::{AreaKind, InitUser}}, components::multi::draw::{paint, self}, utils::inputs::{PaintAction, Message}, stores::host_store::{self, HostStore}};
+use crate::{models::{host::HostPorps, commons::{AreaKind, InitUser}}, components::multi::draw::{paint, self}, utils::{inputs::{PaintAction, Message}, dom::remove_element}, stores::host_store::{self, HostStore}};
 
 
 #[derive(Clone, PartialEq, Store)]
 pub struct HostPropsStore {
     host_props: Option<HostPorps>,
-    paints: Option<HashMap<i8, Rc<HtmlCanvasElement>>>
+    paints: Option<HashMap<i8, Rc<HtmlCanvasElement>>>,
+    paints_f: Option<HashMap<i8, String>>
 }
 
 impl Default for HostPropsStore {
@@ -20,6 +21,7 @@ impl Default for HostPropsStore {
         Self { 
             host_props: Some(HostPorps::new()),
             paints: Some(HashMap::new()),
+            paints_f: Some(HashMap::new()),
         }
     }
 }
@@ -35,6 +37,14 @@ impl HostPropsStore {
     pub fn get_paints(&mut self) -> &mut HashMap<i8, Rc<HtmlCanvasElement>> {
         self.paints.as_mut().unwrap()
     }
+
+    pub fn get_mut_paints_f(&mut self) -> &mut HashMap<i8, String> {
+        self.paints_f.as_mut().unwrap()
+    }
+
+    pub fn get_paints_f(&self) -> & HashMap<i8, String> {
+        self.paints_f.as_ref().unwrap()
+    }
 }
 
 pub enum HostHostMsg {
@@ -43,6 +53,7 @@ pub enum HostHostMsg {
     HostTextAreaInput(InputEvent),
     SwitchHostArea(AreaKind),
     OpenPaint,
+    ClosePaint,
     OnCummunication,
 }
 
@@ -108,13 +119,22 @@ impl Reducer<HostPropsStore> for HostHostMsg {
                 };
                 match area_kind {
                     AreaKind::Editor => {           
-                        let _ = draw::paint::start(&state.get_host_props().host_editor_content, send_message_all_cb.clone());
+                        // let _ = draw::paint::start(&state.get_host_props().host_editor_content, send_message_all_cb.clone(), true);
+                        let content = &state.get_host_props().host_editor_content.clone();
+                        state.get_mut_paints_f().insert(1, String::from(content));
                     },
                     AreaKind::TextArea => {
-                        let _ = draw::paint::start(&state.get_host_props().host_area_content.content, send_message_all_cb.clone());
+                        // let _ = draw::paint::start(&state.get_host_props().host_area_content.content, send_message_all_cb.clone(), true);
+                        let content = &state.get_host_props().host_area_content.content.clone();
+                        state.get_mut_paints_f().insert(1, String::from(content));
                     },
                 }
                 let message = Message::OpenPaint;
+                global_dispatch.apply(host_store::Msg::SendMessage(message));
+            }
+            HostHostMsg::ClosePaint => {
+                remove_element("draw-canvas".to_string());
+                let message = Message::ClosePaint;
                 global_dispatch.apply(host_store::Msg::SendMessage(message));
             }
             HostHostMsg::OnCummunication => {
@@ -174,12 +194,12 @@ impl Reducer<HostPropsStore> for HostPropsMsg {
             HostPropsMsg::OpenPaint => {
                 match state.get_host_props().host_area_kind {
                     AreaKind::Editor => {
-                        let canvas = paint::start(&state.get_host_props().host_editor_content, Callback::default())
+                        let canvas = paint::start(&state.get_host_props().host_editor_content, Callback::default(), false)
                             .expect("cannot get canvas");
                         state.get_paints().insert(1, canvas);
                     },
                     AreaKind::TextArea => {
-                        let canvas = paint::start(&state.get_host_props().host_area_content.content, Callback::default())
+                        let canvas = paint::start(&state.get_host_props().host_area_content.content, Callback::default(), false)
                             .expect("cannot get canvas");
                         state.get_paints().insert(2, canvas);
                     },
