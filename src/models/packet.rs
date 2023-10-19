@@ -19,7 +19,7 @@ impl VideoPacket {
         sequence_number: u64,
     ) -> Self {
         let duration = chunk.duration().expect("no duration video chunk");
-        let mut buffer: [u8; 100000] = [0; 100000];
+        let mut buffer: [u8; 1000000] = [0; 1000000];
         let byte_length = chunk.byte_length() as usize;
         chunk.copy_to_with_u8_array(&mut buffer);
         let data = buffer[0..byte_length].to_vec();

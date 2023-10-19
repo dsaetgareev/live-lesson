@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use js_sys::Uint8Array;
 use web_sys::{ VideoDecoder, VideoDecoderConfig, EncodedVideoChunk, EncodedVideoChunkInit, CodecState, HtmlVideoElement};
 
-use crate::{wrappers::EncodedVideoChunkTypeWrapper, utils::{device::{ create_video_decoder_video, VideoElementKind}, dom::remove_element}};
+use crate::{wrappers::EncodedVideoChunkTypeWrapper, utils::{device::{ create_video_decoder_video, VideoElementKind, create_video_decoder_video_screen}, dom::remove_element}};
 
 use super::packet::VideoPacket;
 
@@ -20,6 +20,7 @@ pub struct Video {
     pub element_kind: VideoElementKind,
     pub require_key: bool,
     pub video_element: HtmlVideoElement,
+    pub is_screen: bool,
 }
 
 impl Video {
@@ -29,6 +30,7 @@ impl Video {
         render_id: String,
         element_kind: VideoElementKind,
         video_element: HtmlVideoElement,
+        is_screen: bool,
     ) -> Self {
         Self {
             cache: BTreeMap::new(),
@@ -42,6 +44,7 @@ impl Video {
             element_kind,
             require_key: false,
             video_element,
+            is_screen,
         }
     }
 
@@ -90,9 +93,16 @@ impl Video {
             CodecState::Closed => {
                 log::error!("video decoder closed");
                 self.require_key = true;
-                remove_element(self.render_id.clone());
-                self.video_decoder = create_video_decoder_video(self.render_id.clone(), self.element_kind.clone())
+                
+                if self.is_screen {
+                    self.video_decoder = create_video_decoder_video_screen(self.render_id.clone(), self.element_kind.clone())
                     .video_decoder;
+                } else {
+                    remove_element(self.render_id.clone());
+                    self.video_decoder = create_video_decoder_video(self.render_id.clone(), self.element_kind.clone())
+                    .video_decoder;
+                }
+                
             },
             _ => {},
         }

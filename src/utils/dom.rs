@@ -75,9 +75,15 @@ pub fn create_video_id(user_id: String) -> String {
 }
 
 pub fn remove_element(element_id: String) {
-    get_element(&element_id)
-        .expect("cannot get element")
-        .remove();
+    match get_element(&element_id) {
+        Ok(element) => {
+            element.remove();
+        },
+        Err(err) => {
+            log::error!("cannot get element {}, err: {}", element_id, err);
+        },
+    }
+       
 }
 
 pub fn on_visible_el(is_visible: bool, el_1: &str, el_2: &str) {

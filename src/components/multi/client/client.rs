@@ -90,7 +90,6 @@ pub fn client() -> Html {
             </div>
             <Devices />
             <div id="shcreen_container" class="consumer unvis">
-                <video id="screen_share" autoplay=true class="screen_canvas"></video>
             </div>
         </div>
     }

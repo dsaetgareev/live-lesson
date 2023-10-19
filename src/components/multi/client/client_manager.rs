@@ -2,7 +2,7 @@ use std::{rc::Rc, cell::RefCell, sync::Arc, collections::HashMap};
 
 use wasm_peers::{one_to_many::MiniClient, ConnectionType, SessionId, many_to_many::NetworkManager, UserId};
 
-use crate::{models::{audio::Audio, video::Video, packet::AudioPacket}, utils::{ inputs::{Message, ManyMassage}, device::{create_audio_decoder, create_video_decoder_video, VideoElementKind}, dom::{on_visible_el, create_video_id, remove_element}}, crypto::aes::Aes128State, stores::client_store::ClientMsg};
+use crate::{models::{audio::Audio, video::Video, packet::AudioPacket}, utils::{ inputs::{Message, ManyMassage}, device::{create_audio_decoder, create_video_decoder_video, VideoElementKind, create_video_decoder_video_screen}, dom::{on_visible_el, create_video_id, remove_element}}, crypto::aes::Aes128State, stores::client_store::ClientMsg};
 
 #[derive(Clone, PartialEq)]
     pub struct ClientManager {
@@ -55,7 +55,7 @@ impl ClientManager {
         };
 
         let video = create_video_decoder_video("render".to_owned(), VideoElementKind::ReadyId);
-        let screen_share_decoder = create_video_decoder_video("screen_share".to_owned(), VideoElementKind::ReadyId);
+        let screen_share_decoder = create_video_decoder_video_screen("screen_share".to_owned(), VideoElementKind::ScreenBox);
         
         let on_action = on_action.clone();
         let audio = self.audio.clone();
@@ -87,28 +87,7 @@ impl ClientManager {
                         message,
                     } => {
                         if video.on_video {
-                             if video.check_key {
-                                if message.chunk_type != "key" {
-                                    return;
-                                }
-                                video.check_key = false;
-                            }
-                            match video.video_decoder.state() {
-                                web_sys::CodecState::Unconfigured => {
-                                    log::info!("video decoder unconfigured");
-                                },
-                                web_sys::CodecState::Configured => {
-                                    if let Err(err) = video.decode_break(Arc::new(message)) {
-                                        log::error!("error on decode {}", err);
-                                    }
-                                },
-                                web_sys::CodecState::Closed => {
-                                    log::info!("video decoder closed");
-                                    video = create_video_decoder_video("render".to_owned(), VideoElementKind::ReadyId);
-                                    video.check_key = true;
-                                },
-                                _ => {},
-                            }
+                             let _ = video.decode_break(Arc::new(message));
                         }
                     },
                     Message::HostIsScreenShare { 
@@ -119,26 +98,7 @@ impl ClientManager {
                     Message::HostScreenShare { 
                         message
                     } => {
-                        if screen_share_decoder.check_key {
-                                if message.chunk_type != "key" {
-                                    return;
-                                }
-                                screen_share_decoder.check_key = false;
-                        } 
-                        match screen_share_decoder.video_decoder.state() {
-                            web_sys::CodecState::Unconfigured => {
-                                log::info!("video decoder unconfigured");
-                            },
-                            web_sys::CodecState::Configured => {
-                                let _ = screen_share_decoder.decode_break(Arc::new(message));
-                            },
-                            web_sys::CodecState::Closed => {
-                                log::info!("video decoder closed");
-                                video.video_decoder.configure(&video.video_config);
-                                video.check_key = true;
-                            },
-                            _ => {},
-                        }
+                        let _ = screen_share_decoder.decode_break(Arc::new(message));
                     },
                     Message::HostAudio { 
                         packet
