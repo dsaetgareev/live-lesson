@@ -6,7 +6,7 @@ use web_sys::{HtmlCanvasElement, HtmlTextAreaElement, InputEvent};
 use yew::Callback;
 use yewdux::{store::{Store, Reducer}, prelude::Dispatch};
 
-use crate::{models::{host::HostPorps, commons::{AreaKind, InitUser}}, components::multi::draw::{paint, self}, utils::{inputs::{PaintAction, Message}, dom::remove_element}, stores::host_store::{self, HostStore}};
+use crate::{models::{host::HostPorps, commons::{AreaKind, InitUser}}, components::multi::draw::paint, utils::{inputs::{PaintAction, Message}, dom::remove_element}, stores::host_store::{self, HostStore}};
 
 
 #[derive(Clone, PartialEq, Store)]
@@ -111,22 +111,14 @@ impl Reducer<HostPropsStore> for HostHostMsg {
             }
             HostHostMsg::OpenPaint => {
                 let area_kind = state.get_host_props().host_area_kind;
-                let send_message_all_cb = {
-                    let global_dispatch = global_dispatch.clone();
-                    Callback::from(move |message: Message| {
-                        global_dispatch.apply(host_store::Msg::SendMessage(message));
-                    })
-                };
                 match area_kind {
-                    AreaKind::Editor => {           
-                        // let _ = draw::paint::start(&state.get_host_props().host_editor_content, send_message_all_cb.clone(), true);
-                        let content = &state.get_host_props().host_editor_content.clone();
-                        state.get_mut_paints_f().insert(1, String::from(content));
+                    AreaKind::Editor => {
+                        let content = state.get_host_props().host_editor_content.clone();
+                        state.get_mut_paints_f().insert(1, content);
                     },
                     AreaKind::TextArea => {
-                        // let _ = draw::paint::start(&state.get_host_props().host_area_content.content, send_message_all_cb.clone(), true);
-                        let content = &state.get_host_props().host_area_content.content.clone();
-                        state.get_mut_paints_f().insert(1, String::from(content));
+                        let content = state.get_host_props().host_area_content.content.clone();
+                        state.get_mut_paints_f().insert(1, content);
                     },
                 }
                 let message = Message::OpenPaint;

@@ -1,10 +1,9 @@
-use std::{rc::Rc, cell::RefCell};
 
-use js_sys::{JsString, Reflect, Array};
+use js_sys::Array;
 use log::error;
 use wasm_bindgen::{JsValue, prelude::Closure, JsCast};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{VideoDecoder, HtmlImageElement, HtmlCanvasElement, CanvasRenderingContext2d, VideoFrame, VideoDecoderInit, VideoDecoderConfig, AudioDecoder, MediaStreamTrackGenerator, MediaStreamTrackGeneratorInit, AudioData, AudioDecoderInit, AudioDecoderConfig, HtmlVideoElement, MediaStream};
+use web_sys::{VideoDecoder, VideoFrame, VideoDecoderInit, VideoDecoderConfig, AudioDecoder, MediaStreamTrackGenerator, MediaStreamTrackGeneratorInit, AudioData, AudioDecoderInit, AudioDecoderConfig, HtmlVideoElement, MediaStream};
 
 use crate::{constants::{VIDEO_CODEC, AUDIO_CHANNELS, AUDIO_CODEC, AUDIO_SAMPLE_RATE}, models::{video::Video, audio::Audio}};
 
@@ -94,11 +93,8 @@ fn create_video_element(video_elem_id: String, el_kind: VideoElementKind) -> Htm
                 },
                 Err(err) => {
                     log::error!("not found {}, {}", box_id, err);
-                    get_element("client-items").unwrap();
                 },
-            };
-            // let div = get_element("client-items").unwrap();
-                      
+            };                      
             video_element
         }
         VideoElementKind::ClentBox => {
