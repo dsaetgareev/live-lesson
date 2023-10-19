@@ -60,7 +60,7 @@ pub enum HostHostMsg {
 impl Reducer<HostPropsStore> for HostHostMsg {
     fn apply(self, mut store: Rc<HostPropsStore>) -> Rc<HostPropsStore> {
         let state = Rc::make_mut(&mut store);
-        let dispatch = Dispatch::<HostPropsStore>::new();
+        let dispatch: Dispatch<HostPropsStore> = Dispatch::<HostPropsStore>::new();
         let global_dispatch = Dispatch::<HostStore>::new();
         match self {
             HostHostMsg::AddClient(user_id) => {
@@ -110,23 +110,26 @@ impl Reducer<HostPropsStore> for HostHostMsg {
                 global_dispatch.apply(host_store::Msg::SendMessage(message));
             }
             HostHostMsg::OpenPaint => {
-                let area_kind = state.get_host_props().host_area_kind;
-                match area_kind {
-                    AreaKind::Editor => {
-                        let content = state.get_host_props().host_editor_content.clone();
-                        state.get_mut_paints_f().insert(1, content);
-                    },
-                    AreaKind::TextArea => {
-                        let content = state.get_host_props().host_area_content.content.clone();
-                        state.get_mut_paints_f().insert(1, content);
-                    },
+                if state.get_paints_f().len() == 0 {
+                    let area_kind = state.get_host_props().host_area_kind;
+                    match area_kind {
+                        AreaKind::Editor => {
+                            let content: String = state.get_host_props().host_editor_content.clone();
+                            state.get_mut_paints_f().insert(1, content);
+                        },
+                        AreaKind::TextArea => {
+                            let content = state.get_host_props().host_area_content.content.clone();
+                            state.get_mut_paints_f().insert(1, content);
+                        },
+                    }
+                    let message = Message::OpenPaint;
+                    global_dispatch.apply(host_store::Msg::SendMessage(message));
                 }
-                let message = Message::OpenPaint;
-                global_dispatch.apply(host_store::Msg::SendMessage(message));
             }
             HostHostMsg::ClosePaint => {
                 remove_element("draw-canvas".to_string());
                 let message = Message::ClosePaint;
+                state.get_mut_paints_f().remove(&1);
                 global_dispatch.apply(host_store::Msg::SendMessage(message));
             }
             HostHostMsg::OnCummunication => {
