@@ -11,7 +11,7 @@ pub enum PaintAction {
 
 #[derive(Serialize, Deserialize)]
 pub enum Message {
-    Init {
+    InitHostArea {
         message: InitUser
     },
     HostToHost {

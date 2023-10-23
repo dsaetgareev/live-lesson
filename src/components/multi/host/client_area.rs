@@ -38,7 +38,6 @@ pub fn client_area() -> Html {
                 }
             },
             AreaKind::TextArea => {
-                log::error!("im text area");
                 let on_host_editor_cb = on_host_editor_cb.clone();
                 let oninput = Callback::from(move |e: InputEvent| {
                     let content = e

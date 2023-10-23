@@ -4,7 +4,7 @@ use yewdux::{store::{Store, Reducer}, prelude::Dispatch};
 
 use crate::{components::multi::client::client_manager::ClientManager, models::{audio::Audio, commons::{AreaKind, InitUser}}, utils::inputs::{ClientMessage, ManyMassage, PaintAction}};
 
-use super::{client_props_store::{ClientPropsStore, ClientPropsMsg}, host_props_store::{HostPropsStore, HostPropsMsg}, media_store::{MediaStore, ClientMediaMsg}};
+use super::{client_props_store::{ClientPropsStore, ClientPropsMsg}, host_props_store::{HostPropsStore, ClientHostPropsMsg}, media_store::{MediaStore, ClientMediaMsg}};
 
 #[derive(Clone, PartialEq, Store)]
 pub struct ClientStore {
@@ -59,6 +59,7 @@ impl ClientStore {
 pub enum ClientMsg {
     Init(SessionId),
     InitClientManager,
+    SendStateToHost,
     SendMessage(ClientMessage),
     SendManyMessage(ManyMassage),
     // Client manager action
@@ -70,7 +71,7 @@ pub enum ClientMsg {
         message: String,
         area_kind: AreaKind,
     },
-    InitHost(InitUser),
+    InitHostAra(InitUser),
     HostSwitchArea(AreaKind),
     OpenPaint,
     HostPaint {
@@ -93,7 +94,6 @@ impl Reducer<ClientStore> for ClientMsg {
         let media_dispatch = Dispatch::<MediaStore>::new();
         match self {
             ClientMsg::Init(session_id) => {
-                log::error!("init");
                 state.init(session_id);
             }
             ClientMsg::InitClientManager => {
@@ -103,6 +103,9 @@ impl Reducer<ClientStore> for ClientMsg {
                 };
                 state.get_client_manager().unwrap().init(on_action);
                 state.get_client_manager().unwrap().many_init();
+            }
+            ClientMsg::SendStateToHost => {
+                client_props_dispatch.apply(ClientPropsMsg::SendStateToHost);
             }
             ClientMsg::SendMessage(message) => {
                 let _ = state.get_mini_client().send_message_to_host(&message);
@@ -115,7 +118,7 @@ impl Reducer<ClientStore> for ClientMsg {
                 message,
                 area_kind, 
             } => {
-                host_props_dispatch.apply(HostPropsMsg::HostToHost { message, area_kind })
+                host_props_dispatch.apply(ClientHostPropsMsg::HostToHost { message, area_kind })
             }
             ClientMsg::HostToClient {
                 message,
@@ -123,21 +126,21 @@ impl Reducer<ClientStore> for ClientMsg {
             } => {
                 client_props_dispatch.apply(ClientPropsMsg::HostToClient { message, area_kind })
             },
-            ClientMsg::InitHost(user) => {
-                host_props_dispatch.apply(HostPropsMsg::InitHost(user));
+            ClientMsg::InitHostAra(user) => {
+                host_props_dispatch.apply(ClientHostPropsMsg::InitHost(user));
             }
             ClientMsg::HostSwitchArea(area_kind) => {
-                host_props_dispatch.apply(HostPropsMsg::HostSwitchArea(area_kind));
+                host_props_dispatch.apply(ClientHostPropsMsg::HostSwitchArea(area_kind));
             }
             ClientMsg::OpenPaint => {
-                host_props_dispatch.apply(HostPropsMsg::OpenPaint);
+                host_props_dispatch.apply(ClientHostPropsMsg::OpenPaint);
             }
             ClientMsg::HostPaint { 
                 offset_x,
                 offset_y,
                 action
             } => {
-                host_props_dispatch.apply(HostPropsMsg::HostPaint { offset_x, offset_y, action })
+                host_props_dispatch.apply(ClientHostPropsMsg::HostPaint { offset_x, offset_y, action })
             }
             ClientMsg::OnCummunication { message } => {
                 media_dispatch.apply(ClientMediaMsg::OnCummunication(message));

@@ -26,8 +26,6 @@ pub fn client_box(props: &ItemPorps) -> Html {
     let box_id = format!("item-box-{}", create_video_id(key.clone()));
 
     use_effect({
-        log::error!("key key {}", key.clone());
-        log::error!("item bos {}", box_id.clone());
         let box_id = box_id.clone();
         let key_id = key_id.clone();
         move || {
@@ -92,7 +90,6 @@ pub fn client_items() -> Html {
     let (state, _dispatch) = use_store::<ClientItemsStore>();
 
     let render = || {
-        log::error!("clent items");
         let players = state.get_players();
 
         players

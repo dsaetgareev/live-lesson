@@ -2,11 +2,10 @@ use std::cell::Cell;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, MouseEvent};
-use yew::{Callback, Component, Properties, NodeRef, html, use_node_ref, Html, function_component, use_effect, use_state_eq};
+use yew::{Callback, Properties, html, use_node_ref, Html, function_component, use_effect, use_state_eq};
 use yew_icons::{IconId, Icon};
 use yewdux::prelude::use_store;
 
-use crate::models::commons::AreaKind;
 use crate::stores::host_props_store::{HostPropsStore, HostHostMsg};
 use crate::utils;
 use crate::utils::inputs::{Message, PaintAction};
@@ -27,7 +26,7 @@ pub struct CurrentProps {
 #[function_component(PaintF)]
 pub fn paint(props: &CurrentProps) -> Html {
 
-    let (state, dispatch) = use_store::<HostPropsStore>();
+    let (_state, dispatch) = use_store::<HostPropsStore>();
 
     let content = use_state_eq(|| props.content.clone());
 
@@ -70,7 +69,7 @@ pub fn paint(props: &CurrentProps) -> Html {
     html! {
         <div>
             <button>
-                <Icon icon_id={IconId::FontAwesomeSolidCode} onclick={ editor_click }/>
+                <Icon icon_id={IconId::BootstrapXSquare} onclick={ editor_click }/>
             </button>
             <canvas id="draw-canvas" ref={ canvas } class="paint"></canvas>
         </div>
@@ -185,7 +184,7 @@ fn host_action(canvas: &web_sys::HtmlCanvasElement, context: web_sys::CanvasRend
 }
 
 
-fn client_action(canvas: &web_sys::HtmlCanvasElement, context: web_sys::CanvasRenderingContext2d, send_message_all_cb: Callback<Message>) {
+fn _client_action(canvas: &web_sys::HtmlCanvasElement, context: web_sys::CanvasRenderingContext2d, send_message_all_cb: Callback<Message>) {
     let context = Rc::new(context);
     let pressed = Rc::new(Cell::new(false));
        

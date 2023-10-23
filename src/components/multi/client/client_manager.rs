@@ -49,8 +49,10 @@ impl ClientManager {
     ) {
         let on_action  = Rc::new(RefCell::new(on_action));
         let on_open_callback = {
+            let on_action = on_action.clone();
             move || {
                log::error!("client manager on open");
+               on_action.borrow()(ClientMsg::SendStateToHost);
             }
         };
 
@@ -71,18 +73,18 @@ impl ClientManager {
                         area_kind, 
                     } => {
                         on_action.borrow()(ClientMsg::HostToHost { message, area_kind })
-                    },
+                    },                    
                     Message::HostToClient {
                         message,
                         area_kind
                     } => {
                         on_action.borrow()(ClientMsg::HostToClient { message, area_kind })
                     },
-                    Message::Init { 
+                    Message::InitHostArea { 
                         message,
                     } => {
-                       on_action.borrow()(ClientMsg::InitHost(message));
-                    },
+                       on_action.borrow()(ClientMsg::InitHostAra(message));
+                    }
                     Message::HostVideo { 
                         message,
                     } => {

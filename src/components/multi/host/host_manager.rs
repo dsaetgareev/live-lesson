@@ -2,7 +2,7 @@ use std::{collections::HashMap, cell::RefCell, rc::Rc, sync::Arc};
 
 use wasm_peers::{UserId, one_to_many::MiniServer, SessionId, ConnectionType};
 
-use crate::{models::{client::ClientItem, video::Video, audio::Audio}, stores::host_store, utils::{dom::{create_video_id, remove_element}, device::{create_video_decoder_video, VideoElementKind, create_audio_decoder}, inputs::ClientMessage}, components::common::video};
+use crate::{models::{client::ClientItem, video::Video, audio::Audio}, stores::host_store, utils::{dom::create_video_id, device::{create_video_decoder_video, VideoElementKind, create_audio_decoder}, inputs::ClientMessage}};
 
 #[derive(Clone, PartialEq)]
 pub struct HostManager {
@@ -67,6 +67,7 @@ impl HostManager {
                     ClientMessage::InitClient { 
                         message
                     } => {
+                        log::error!("init user {:?}", message);
                         on_action.borrow()(host_store::Msg::InitClient(user_id, message));
                     }
                     ClientMessage::ClientText { message: _ } => {

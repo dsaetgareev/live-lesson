@@ -15,7 +15,7 @@ pub struct MediaStore {
     camera: Option<CameraEncoder>,
     microphone: Option<MicrophoneEncoder>,
     screen: Option<ScreenEncoder>,
-    is_communication: bool,
+    is_communication: Rc<RefCell<bool>>,
 }
 
 impl Default for MediaStore {
@@ -24,7 +24,7 @@ impl Default for MediaStore {
             camera: Some(CameraEncoder::new()),
             microphone: Some(MicrophoneEncoder::new()),
             screen: Some(ScreenEncoder::new()),
-            is_communication: true,
+            is_communication: Rc::new(RefCell::new(true)),
         }
     }
 }
@@ -55,10 +55,10 @@ impl MediaStore {
     }
 
     pub fn set_communication(&mut self, is_communication: bool) {
-        self.is_communication = is_communication;
+        self.is_communication.replace(is_communication);
     }
     pub fn is_communication(&self) -> bool {
-        self.is_communication
+        *self.is_communication.borrow()
     }
 }
 
@@ -175,6 +175,7 @@ pub enum ClientMediaMsg {
     EnableVideo(bool),
     SwitchVedeo(MouseEvent),
     OnCummunication (bool),
+    SetCommunication(bool),
 }
 
 impl Reducer<MediaStore> for ClientMediaMsg {
@@ -194,7 +195,7 @@ impl Reducer<MediaStore> for ClientMediaMsg {
             ClientMediaMsg::EnableMicrophone(should_enable) => {
                 if should_enable {
                     let global_dispatch = global_dispatch.clone();
-                    let is_communication = Rc::new(RefCell::new(state.is_communication)).clone();
+                    let is_communication = state.is_communication.clone();
                     let on_audio = move |chunk: web_sys::EncodedAudioChunk| {
                         
                         let audio_packet = AudioPacket::new(chunk);
@@ -225,7 +226,7 @@ impl Reducer<MediaStore> for ClientMediaMsg {
             ClientMediaMsg::EnableVideo(should_enable) => {
                 if should_enable {
                     let global_dispatch = global_dispatch.clone();
-                    let is_communication = Rc::new(RefCell::new(state.is_communication)).clone();
+                    let is_communication = state.is_communication.clone();
                     let on_frame = move |packet: VideoPacket| {
                                         
                         let message = ClientMessage::ClientVideo { 
@@ -261,6 +262,9 @@ impl Reducer<MediaStore> for ClientMediaMsg {
             },
             ClientMediaMsg::OnCummunication(message) => {
                 switch_visible_el(message, "video-box");
+                state.set_communication(message);
+            }
+            ClientMediaMsg::SetCommunication(message) => {
                 state.set_communication(message);
             }
         }

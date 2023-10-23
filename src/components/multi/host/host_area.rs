@@ -1,6 +1,3 @@
-
-use std::borrow::BorrowMut;
-
 use monaco::api::TextModel;
 use web_sys::{InputEvent, MouseEvent};
 use yew::{html, Callback, Html, function_component};

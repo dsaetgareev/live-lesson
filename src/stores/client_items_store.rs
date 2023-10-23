@@ -10,8 +10,6 @@ use crate::{models::{client::ClientItem, commons::{AreaKind, InitUser}}, utils::
 use super::client_props_store::{ClientPropsStore, HostClientMsg};
 
 
-
-
 #[derive(Clone, PartialEq, Store)]
 pub struct ClientItemsStore {
     players: HashMap<UserId, ClientItem>,

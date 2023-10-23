@@ -5,7 +5,7 @@ use wasm_peers::UserId;
 use web_sys::{InputEvent, HtmlTextAreaElement};
 use yewdux::{store::{Store, Reducer}, prelude::Dispatch};
 
-use crate::{models::{client::{ClientProps, ClientItem}, commons::AreaKind}, stores::{client_store::{ClientStore, ClientMsg}, host_store::{HostStore, self}, client_items_store::{ClientItemsStore, ClientItemMsg}}, utils::inputs::{ClientMessage, Message}};
+use crate::{models::{client::{ClientProps, ClientItem}, commons::{AreaKind, InitUser}}, stores::{client_store::{ClientStore, ClientMsg}, host_store::{HostStore, self}, client_items_store::{ClientItemsStore, ClientItemMsg}}, utils::inputs::{ClientMessage, Message}};
 
 
 #[derive(Clone, PartialEq, Store)]
@@ -31,6 +31,7 @@ impl ClientPropsStore {
 }
 
 pub enum ClientPropsMsg {
+    SendStateToHost,
     SwitchArea(AreaKind),
     UpdateClientValue(String),
     UpdateClientTextArea(InputEvent),
@@ -46,6 +47,19 @@ impl Reducer<ClientPropsStore> for ClientPropsMsg {
         let state = Rc::make_mut(&mut store);
         let global_dispatch = Dispatch::<ClientStore>::new();
         match self {
+            ClientPropsMsg::SendStateToHost => {
+                let editor_content = state.get_client_props().client_editor_content.clone();
+                let text_area_content = state.get_client_props().client_text_area.content.clone();
+                let area_kind = state.get_client_props().client_area_kind;
+                let init_user = InitUser {
+                    editor_content,
+                    text_area_content,
+                    area_kind: area_kind.clone(),
+                    is_communication: false
+                };
+                let message = ClientMessage::InitClient { message: init_user };
+                global_dispatch.apply(ClientMsg::SendMessage(message));
+            }
             ClientPropsMsg::SwitchArea(area_kind) => {
                 state.get_mut_client_props().set_area_kind(area_kind);
                 let message = ClientMessage::ClientSwitchArea { message: area_kind };
@@ -67,6 +81,7 @@ impl Reducer<ClientPropsStore> for ClientPropsMsg {
                     .unwrap()
                     .unchecked_into::<HtmlTextAreaElement>()
                     .value();
+                state.get_mut_client_props().set_text_area_content(content.clone());
                 let message = ClientMessage::ClientToClient {
                              message: content,
                              area_kind: state.get_client_props().client_area_kind

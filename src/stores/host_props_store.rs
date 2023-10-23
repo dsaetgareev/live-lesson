@@ -8,6 +8,8 @@ use yewdux::{store::{Store, Reducer}, prelude::Dispatch};
 
 use crate::{models::{host::HostPorps, commons::{AreaKind, InitUser}}, components::multi::draw::paint, utils::{inputs::{PaintAction, Message}, dom::remove_element}, stores::host_store::{self, HostStore}};
 
+use super::media_store::{MediaStore, ClientMediaMsg};
+
 
 #[derive(Clone, PartialEq, Store)]
 pub struct HostPropsStore {
@@ -60,7 +62,6 @@ pub enum HostHostMsg {
 impl Reducer<HostPropsStore> for HostHostMsg {
     fn apply(self, mut store: Rc<HostPropsStore>) -> Rc<HostPropsStore> {
         let state = Rc::make_mut(&mut store);
-        let dispatch: Dispatch<HostPropsStore> = Dispatch::<HostPropsStore>::new();
         let global_dispatch = Dispatch::<HostStore>::new();
         match self {
             HostHostMsg::AddClient(user_id) => {
@@ -74,21 +75,13 @@ impl Reducer<HostPropsStore> for HostHostMsg {
                     area_kind: area_kind.clone(),
                     is_communication
                 };
-                let message = Message::Init { 
+                let message = Message::InitHostArea { 
                     message: init_user,      
                 };
                 global_dispatch.apply(host_store::Msg::SendMessageToUser(user_id, message));
             }
             HostHostMsg::HostUpdateValue(content) => {
-                let host_area_kind = state.get_host_props().host_area_kind;
-                match host_area_kind {
-                    AreaKind::Editor => {
-                        state.get_mut_host_props().host_editor_content = content.clone();
-                    },
-                    AreaKind::TextArea => {
-                        state.get_mut_host_props().host_area_content.set_content(content.clone());
-                    },
-                }
+                state.get_mut_host_props().set_editor_content(content.clone());
                 let message = Message::HostToHost {
                              message: content,
                              area_kind: state.get_host_props().host_area_kind
@@ -101,7 +94,12 @@ impl Reducer<HostPropsStore> for HostHostMsg {
                     .unwrap()
                     .unchecked_into::<HtmlTextAreaElement>()
                     .value();
-                dispatch.apply(HostHostMsg::HostUpdateValue(content));
+                state.get_mut_host_props().set_text_area_content(content.clone());
+                let message = Message::HostToHost {
+                             message: content,
+                             area_kind: state.get_host_props().host_area_kind
+                };
+                global_dispatch.apply(host_store::Msg::SendMessage(message));
             }
             HostHostMsg::SwitchHostArea(area_kind) => {
                 state.get_mut_host_props().set_host_area_kind(area_kind);
@@ -144,7 +142,7 @@ impl Reducer<HostPropsStore> for HostHostMsg {
     }
 }
 
-pub enum HostPropsMsg {
+pub enum ClientHostPropsMsg {
     InitHost(InitUser),
     HostSwitchArea(AreaKind),
     HostToHost {
@@ -160,11 +158,12 @@ pub enum HostPropsMsg {
 }
 
 
-impl Reducer<HostPropsStore> for HostPropsMsg {
+impl Reducer<HostPropsStore> for ClientHostPropsMsg {
     fn apply(self, mut store: Rc<HostPropsStore>) -> Rc<HostPropsStore> {
         let state = Rc::make_mut(&mut store);
+        let media_dispatch = Dispatch::<MediaStore>::new();
         match self {
-            HostPropsMsg::HostToHost { 
+            ClientHostPropsMsg::HostToHost { 
                 message,
                 area_kind
             } => {
@@ -177,16 +176,17 @@ impl Reducer<HostPropsStore> for HostPropsMsg {
                     },
                 }
             }
-            HostPropsMsg::InitHost(user) => {
+            ClientHostPropsMsg::InitHost(user) => {
                 state.get_mut_host_props().host_area_content.set_content(user.text_area_content);
                 state.get_mut_host_props().set_editor_content(user.editor_content);
                 state.get_mut_host_props().set_host_area_kind(user.area_kind);
                 state.get_mut_host_props().set_communication(user.is_communication);
+                media_dispatch.apply(ClientMediaMsg::SetCommunication(user.is_communication));
             },
-            HostPropsMsg::HostSwitchArea(area_kind) => {
+            ClientHostPropsMsg::HostSwitchArea(area_kind) => {
                 state.get_mut_host_props().set_host_area_kind(area_kind);
             },
-            HostPropsMsg::OpenPaint => {
+            ClientHostPropsMsg::OpenPaint => {
                 match state.get_host_props().host_area_kind {
                     AreaKind::Editor => {
                         let canvas = paint::start(&state.get_host_props().host_editor_content, Callback::default(), false)
@@ -200,7 +200,7 @@ impl Reducer<HostPropsStore> for HostPropsMsg {
                     },
                 }
             }
-            HostPropsMsg::HostPaint { 
+            ClientHostPropsMsg::HostPaint { 
                 offset_x,
                 offset_y,
                 action

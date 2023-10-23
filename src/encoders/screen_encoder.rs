@@ -1,6 +1,3 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use js_sys::Array;
 use js_sys::JsString;
 use js_sys::Reflect;
