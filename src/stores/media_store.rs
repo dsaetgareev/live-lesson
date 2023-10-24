@@ -17,7 +17,7 @@ pub struct MediaStore {
     microphone: Option<MicrophoneEncoder>,
     screen: Option<ScreenEncoder>,
     is_communication: Rc<RefCell<bool>>,
-    is_screen: bool,
+    is_screen: Rc<RefCell<bool>>,
 }
 
 impl Default for MediaStore {
@@ -27,7 +27,7 @@ impl Default for MediaStore {
             microphone: Some(MicrophoneEncoder::new()),
             screen: Some(ScreenEncoder::new()),
             is_communication: Rc::new(RefCell::new(true)),
-            is_screen: false,
+            is_screen: Rc::new(RefCell::new(false)),
         }
     }
 }
@@ -135,9 +135,10 @@ impl Reducer<MediaStore> for HostMediaMsg {
 
                 
                     let global_dispatch_move = global_dispatch.clone();
-                    state.is_screen = true;
-                    let message = Message::HostIsScreenShare { message: state.is_screen };
+                    state.is_screen.replace(true);
+                    let message = Message::HostIsScreenShare { message: *state.is_screen.borrow() };
                     global_dispatch_move.apply(host_store::Msg::SendMessage(message));
+                    let is_screen = state.is_screen.clone();
                     let on_frame = move |packet: VideoPacket| {
                         
                         let message = Message::HostScreenShare { 
@@ -148,8 +149,9 @@ impl Reducer<MediaStore> for HostMediaMsg {
 
                      let global_dispatch = global_dispatch.clone();
                     let on_stop_share = move || {
-                        dispatch.apply(HostMediaMsg::ResumeVideo);
-                        let message = Message::HostIsScreenShare { message: false };
+                        // dispatch.apply(HostMediaMsg::ResumeVideo);
+                        is_screen.replace(false);
+                        let message = Message::HostIsScreenShare { message: *is_screen.borrow() };
                         global_dispatch.apply(host_store::Msg::SendMessage(message));  
                     };
                     state.get_mut_screen().start(
@@ -159,7 +161,7 @@ impl Reducer<MediaStore> for HostMediaMsg {
                 }
             }
             HostMediaMsg::IsScreen(user_id) => {
-                let message = Message::HostIsScreenShare { message: state.is_screen };
+                let message = Message::HostIsScreenShare { message: *state.is_screen.borrow() };
                 global_dispatch.apply(host_store::Msg::SendMessageToUser(user_id, message));
             }
             HostMediaMsg::ResumeVideo => {

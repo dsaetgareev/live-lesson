@@ -91,11 +91,11 @@ pub fn on_visible_el(is_visible: bool, el_1: &str, el_2: &str) {
     let el_2 = get_element(el_2).unwrap();
     
     if is_visible {
-        el_1.set_class_name(&el_1.class_name().replace("vis", "unvis"));
-        el_2.set_class_name(&el_2.class_name().replace("unvis", "vis"));
+        el_1.set_class_name(&el_1.class_name().replace(" vis", " unvis"));
+        el_2.set_class_name(&el_2.class_name().replace(" unvis", " vis"));
     } else {
-        el_1.set_class_name(&el_1.class_name().replace("unvis", "vis"));
-        el_2.set_class_name(&el_2.class_name().replace("vis", "unvis"));
+        el_1.set_class_name(&el_1.class_name().replace(" unvis", " vis"));
+        el_2.set_class_name(&el_2.class_name().replace(" vis", " unvis"));
     }
    
 }
