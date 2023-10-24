@@ -38,7 +38,7 @@ pub fn create_video_decoder_video_screen(video_elem_id: String, el_kind: VideoEl
     let frame_count = Rc::new(RefCell::new(0));
     let output = Closure::wrap(Box::new(move |original_chunk: JsValue| {
         *frame_count.borrow_mut() += 1;
-        if *frame_count.borrow() % 6 == 0 {
+        if *frame_count.borrow() % 4 == 0 {
             let chunk = Box::new(original_chunk);
             let video_chunk = chunk.clone().unchecked_into::<HtmlVideoElement>();
             let writable = video_stream_generator.writable();

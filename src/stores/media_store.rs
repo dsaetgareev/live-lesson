@@ -1,6 +1,7 @@
 use std::{rc::Rc, cell::RefCell};
 
 use gloo_timers::callback::Timeout;
+use wasm_peers::UserId;
 use web_sys::MouseEvent;
 use yewdux::{store::{Store, Reducer}, prelude::Dispatch};
 
@@ -16,6 +17,7 @@ pub struct MediaStore {
     microphone: Option<MicrophoneEncoder>,
     screen: Option<ScreenEncoder>,
     is_communication: Rc<RefCell<bool>>,
+    is_screen: bool,
 }
 
 impl Default for MediaStore {
@@ -25,6 +27,7 @@ impl Default for MediaStore {
             microphone: Some(MicrophoneEncoder::new()),
             screen: Some(ScreenEncoder::new()),
             is_communication: Rc::new(RefCell::new(true)),
+            is_screen: false,
         }
     }
 }
@@ -69,6 +72,7 @@ pub enum HostMediaMsg {
     EnableVideo(bool),
     OnCummunication (bool),
     EnableScreenShare(bool),
+    IsScreen(UserId),
     ResumeVideo,
 }
 
@@ -131,7 +135,8 @@ impl Reducer<MediaStore> for HostMediaMsg {
 
                 
                     let global_dispatch_move = global_dispatch.clone();
-                    let message = Message::HostIsScreenShare { message: true };
+                    state.is_screen = true;
+                    let message = Message::HostIsScreenShare { message: state.is_screen };
                     global_dispatch_move.apply(host_store::Msg::SendMessage(message));
                     let on_frame = move |packet: VideoPacket| {
                         
@@ -152,6 +157,10 @@ impl Reducer<MediaStore> for HostMediaMsg {
                         on_stop_share,
                     );
                 }
+            }
+            HostMediaMsg::IsScreen(user_id) => {
+                let message = Message::HostIsScreenShare { message: state.is_screen };
+                global_dispatch.apply(host_store::Msg::SendMessageToUser(user_id, message));
             }
             HostMediaMsg::ResumeVideo => {
                 state.get_mut_camera().set_enabled(true);

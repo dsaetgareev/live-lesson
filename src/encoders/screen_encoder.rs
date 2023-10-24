@@ -39,7 +39,6 @@ impl ScreenEncoder {
         }
     }
 
-    // delegates to self.state
     pub fn set_enabled(&mut self, value: bool) -> bool {
         self.state.set_enabled(value)
     }
@@ -61,11 +60,11 @@ impl ScreenEncoder {
             let mut sequence_number: u64 = 0;
             Box::new(move |chunk: JsValue| {
                 let chunk = web_sys::EncodedVideoChunk::from(chunk);
-                if chunk.byte_length() < 200_000 {
+                if chunk.byte_length() < 170_000 {
                     let packet = VideoPacket::new(chunk, sequence_number);
                     on_frame(packet);
                    
-                }  
+                }
                  sequence_number += 1;              
             })
         };
@@ -103,7 +102,7 @@ impl ScreenEncoder {
             let screen_encoder = Box::new(VideoEncoder::new(&screen_encoder_init).unwrap());
             let mut screen_encoder_config =
                 VideoEncoderConfig::new(VIDEO_CODEC, SCREEN_VIDEO_HEIGHT as u32, SCREEN_VIDEO_WIDTH as u32);
-            screen_encoder_config.bitrate(300_000f64);
+            screen_encoder_config.bitrate(400_000f64);
             screen_encoder_config.latency_mode(LatencyMode::Quality);
             screen_encoder.configure(&screen_encoder_config);
 

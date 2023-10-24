@@ -5,7 +5,7 @@ use yewdux::{store::{Reducer, Store}, prelude::Dispatch};
 
 use crate::{components::multi::host::host_manager::HostManager, models::{client::ClientItem, commons::{AreaKind, InitUser}, video::Video, audio::Audio}, stores::host_store, utils::{inputs::Message, dom::{create_video_id, on_visible_el}}};
 
-use super::{client_items_store::{ClientItemsStore, ClientItemMsg}, client_props_store::{ClientPropsStore, HostClientMsg}, host_props_store::{HostPropsStore, HostHostMsg}};
+use super::{client_items_store::{ClientItemsStore, ClientItemMsg}, client_props_store::{ClientPropsStore, HostClientMsg}, host_props_store::{HostPropsStore, HostHostMsg}, media_store::{MediaStore, HostMediaMsg}};
 
 #[derive(Clone, PartialEq, Store)]
 pub struct HostStore {
@@ -94,6 +94,7 @@ impl Reducer<HostStore> for Msg {
         let client_items_dispatch = Dispatch::<ClientItemsStore>::new();
         let client_area_dispatch = Dispatch::<ClientPropsStore>::new();
         let host_area_dispatch = Dispatch::<HostPropsStore>::new();
+        let media_dispatch = Dispatch::<MediaStore>::new();
         match self {
             Msg::Init(session_id) => {
                 state.init(session_id);
@@ -107,6 +108,7 @@ impl Reducer<HostStore> for Msg {
             Msg::AddClient(user_id) => {
                 host_area_dispatch.apply(HostHostMsg::AddClient(user_id));
                 client_items_dispatch.apply(ClientItemMsg::AddClient(user_id));
+                media_dispatch.apply(HostMediaMsg::IsScreen(user_id));
             }
             Msg::InitClient(user_id, init_user) => {
                 client_items_dispatch.apply(ClientItemMsg::InitClient(user_id, init_user));
