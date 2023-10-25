@@ -105,24 +105,7 @@ impl ClientManager {
                     Message::HostAudio { 
                         packet
                     } => {
-                        if audio.borrow().on_speakers {
-                            
-                            let encoded_audio_chunk = AudioPacket::get_encoded_audio_chunk(packet);
-
-                            match audio.borrow().audio_decoder.state() {
-                                web_sys::CodecState::Unconfigured => {
-                                    log::info!("audio decoder unconfigured");
-                                },
-                                web_sys::CodecState::Configured => {
-                                    audio.borrow().audio_decoder.decode(&encoded_audio_chunk);
-                                },
-                                web_sys::CodecState::Closed => {
-                                    log::info!("audio_decoder closed");
-                                },
-                                _ => {}
-                            }    
-                        }
-                        
+                        audio.borrow().decode(packet);                        
                     },
                     Message::HostSwitchAudio => {
                         audio.borrow_mut().on_speakers = !audio.borrow().on_speakers;
@@ -197,22 +180,9 @@ impl ClientManager {
                         packet
                     } => {
                         let audio = audio_decoders.as_ref().borrow().get(&user_id).unwrap().clone();
+                         
                         if audio.borrow().on_speakers {
-                            
-                            let encoded_audio_chunk = AudioPacket::get_encoded_audio_chunk(packet);
-
-                            match audio.borrow().audio_decoder.state() {
-                                web_sys::CodecState::Unconfigured => {
-                                    log::info!("audio decoder unconfigured");
-                                },
-                                web_sys::CodecState::Configured => {
-                                    audio.borrow().audio_decoder.decode(&encoded_audio_chunk);
-                                },
-                                web_sys::CodecState::Closed => {
-                                    log::info!("audio_decoder closed");
-                                },
-                                _ => {}
-                            }    
+                           audio.borrow().decode(packet);
                         }
                     },
                     ManyMassage::Video { 

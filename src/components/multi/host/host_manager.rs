@@ -67,7 +67,6 @@ impl HostManager {
                     ClientMessage::InitClient { 
                         message
                     } => {
-                        log::error!("init user {:?}", message);
                         on_action.borrow()(host_store::Msg::InitClient(user_id, message));
                     }
                     ClientMessage::ClientText { message: _ } => {

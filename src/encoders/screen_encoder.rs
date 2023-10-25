@@ -64,6 +64,8 @@ impl ScreenEncoder {
                     let packet = VideoPacket::new(chunk, sequence_number);
                     on_frame(packet);
                    
+                } else {
+                    log::error!("large chank len {}", chunk.byte_length());
                 }
                  sequence_number += 1;              
             })
@@ -102,8 +104,8 @@ impl ScreenEncoder {
             let screen_encoder = Box::new(VideoEncoder::new(&screen_encoder_init).unwrap());
             let mut screen_encoder_config =
                 VideoEncoderConfig::new(VIDEO_CODEC, SCREEN_VIDEO_HEIGHT as u32, SCREEN_VIDEO_WIDTH as u32);
-            screen_encoder_config.bitrate(400_000f64);
-            screen_encoder_config.latency_mode(LatencyMode::Quality);
+            screen_encoder_config.bitrate(250_000f64);
+            screen_encoder_config.latency_mode(LatencyMode::Realtime);
             screen_encoder.configure(&screen_encoder_config);
 
             let screen_processor =
@@ -133,7 +135,7 @@ impl ScreenEncoder {
                                 .unwrap()
                                 .unchecked_into::<VideoFrame>();
                             let mut opts = VideoEncoderEncodeOptions::new();
-                            screen_frame_counter = (screen_frame_counter + 1) % 50;
+                            screen_frame_counter = (screen_frame_counter + 1) % 25;
                             opts.key_frame(screen_frame_counter == 0);
                             if video_frame.is_undefined() {
                                 on_stop_share();
