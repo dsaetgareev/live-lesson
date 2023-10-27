@@ -106,7 +106,7 @@ impl ClientManager {
                     Message::HostAudio { 
                         packet
                     } => {
-                        audio.borrow().decode(packet);                        
+                        audio.borrow().decode(packet);
                     },
                     Message::HostSwitchAudio => {
                         audio.borrow_mut().on_speakers = !audio.borrow().on_speakers;

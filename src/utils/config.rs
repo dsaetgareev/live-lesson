@@ -24,7 +24,7 @@ pub fn configure_audio_context(
     audio_context_options.sample_rate(AUDIO_SAMPLE_RATE as f32);
     let audio_context = AudioContext::new_with_context_options(&audio_context_options).unwrap();
     let gain_node = audio_context.create_gain().unwrap();
-    gain_node.set_channel_count(1);
+    gain_node.set_channel_count(2);
     let source = audio_context
         .create_media_stream_source(&media_stream)
         .unwrap();
