@@ -3,7 +3,6 @@ use wasm_peers::get_random_session_id;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::prelude::*;
-
 use crate::components::document::document::Query;
 use crate::Route;
 

@@ -61,9 +61,6 @@ impl CameraEncoder {
         on_frame: impl Fn(VideoPacket) + 'static,
         video_elem_id: &str,
     ) {
-        // 1. Query the first device with a camera and a mic attached.
-        // 2. setup WebCodecs, in particular
-        // 3. send encoded video frames and raw audio to the server.
         let on_frame = Box::new(on_frame);
         let video_elem_id = video_elem_id.to_string();
         let EncoderState {

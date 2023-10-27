@@ -2,7 +2,8 @@ use std::{rc::Rc, cell::RefCell, sync::Arc, collections::HashMap};
 
 use wasm_peers::{one_to_many::MiniClient, ConnectionType, SessionId, many_to_many::NetworkManager, UserId};
 
-use crate::{models::{audio::Audio, video::Video, packet::AudioPacket}, utils::{ inputs::{Message, ManyMassage}, device::{create_audio_decoder, create_video_decoder_video, VideoElementKind, create_video_decoder_video_screen}, dom::{on_visible_el, create_video_id, remove_element}}, crypto::aes::Aes128State, stores::client_store::ClientMsg};
+
+use crate::{models::{audio::Audio, video::Video}, utils::{ inputs::{Message, ManyMassage}, device::{create_audio_decoder, create_video_decoder_video, VideoElementKind, create_video_decoder_video_screen}, dom::{on_visible_el, create_video_id, remove_element}}, crypto::aes::Aes128State, stores::client_store::ClientMsg};
 
 #[derive(Clone, PartialEq)]
     pub struct ClientManager {
@@ -39,7 +40,7 @@ impl ClientManager {
             audio: Rc::new(RefCell::new(create_audio_decoder())),
             network_manager,
             audio_decoders,
-            video_decoders
+            video_decoders,
         }
     }
 
@@ -162,7 +163,6 @@ impl ClientManager {
         let video_decoders = self.video_decoders.clone();
         
         let on_open_callback = {
-            
             move |user_id: UserId| {
                 audio_decoders.as_ref().borrow_mut().insert(user_id, Rc::new(RefCell::new(create_audio_decoder())));
                 let video_id = create_video_id(user_id.into_inner().to_string());

@@ -1,6 +1,5 @@
 use yew::{html, Html, function_component};
 use yew_router::prelude::*;
-
 use crate::components::document::document::Document;
 use crate::components::home::Home;
 use crate::components::multi::multi::Multi;
@@ -20,6 +19,7 @@ pub enum Route {
 
 #[function_component(App)]
 pub fn app() -> Html {
+   
     html! {
         <BrowserRouter>
             <main>

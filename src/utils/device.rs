@@ -205,8 +205,14 @@ pub fn create_audio_decoder() -> Audio {
     let error = Closure::wrap(Box::new(move |e: JsValue| {
         error!("{:?}", e);
     }) as Box<dyn FnMut(JsValue)>);
-    let audio_stream_generator =
-        MediaStreamTrackGenerator::new(&MediaStreamTrackGeneratorInit::new("audio")).unwrap();
+    let audio_stream_generator = match MediaStreamTrackGenerator::new(&MediaStreamTrackGeneratorInit::new("audio")) {
+        Ok(audio_stream_generator) => {
+            audio_stream_generator
+        },
+        Err(err) => {
+            panic!("Problem create audio stream generator: {:?}", err)
+        },
+    };
     // The audio context is used to reproduce audio.
     let (audio_context, gain_node) = configure_audio_context(&audio_stream_generator).unwrap();
    
