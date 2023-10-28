@@ -31,23 +31,17 @@ impl Audio {
     pub fn decode(&self, packet: AudioPacket) {
         let encoded_audio_chunk = AudioPacket::get_encoded_audio_chunk(packet);
         let state = self.audio_decoder.state();
-        log::error!("doc q s {}", self.audio_decoder.decode_queue_size());
-        if self.audio_decoder.decode_queue_size() < 3 {
-            match state {
-                web_sys::CodecState::Unconfigured => {
-                    log::info!("audio decoder unconfigured");
-                },
-                web_sys::CodecState::Configured => {
-                    log::error!("doc q s {}", self.audio_decoder.decode_queue_size());
-                    self.audio_decoder.decode(&encoded_audio_chunk);
-                },
-                web_sys::CodecState::Closed => {
-                    log::info!("audio_decoder closed");
-                },
-                _ => {}
-            }    
-        } else {
-            self.audio_decoder.reset();
+        match state {
+            web_sys::CodecState::Unconfigured => {
+                log::info!("audio decoder unconfigured");
+            },
+            web_sys::CodecState::Configured => {
+                self.audio_decoder.decode(&encoded_audio_chunk);
+            },
+            web_sys::CodecState::Closed => {
+                log::info!("audio_decoder closed");
+            },
+            _ => {}
         }
         
     }
