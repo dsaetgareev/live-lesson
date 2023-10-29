@@ -1,35 +1,38 @@
+use std::sync::Arc;
+
+use js_sys::Uint8Array;
 use serde::{Serialize, Deserialize};
 use yew_agent::{WorkerLink, Public};
-use crate::models::packet::AudioPacket;
+use crate::models::packet::VideoPacket;
 
 /// Used by gloo-worker, specify the worker.js file path genereated.
 static WORKER_PATH: &'static str = "worker.js";
 
-pub struct AudioWorker {
+pub struct VideoWorker {
     /// link used to send messages to main thread
     link: WorkerLink<Self>,
 }
 
 
 #[derive(Serialize, Deserialize)]
-pub struct AudioWorkerInput {
+pub struct VideoWorkerInput {
     pub file: String,
-    pub packet: AudioPacket 
+    pub packet: Arc<VideoPacket> 
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct AudioWorkerOutput {
-    pub url: String,
+pub struct VideoWorkerOutput {
+    pub data: VideoPacket,
 }
 
-impl yew_agent::Worker for AudioWorker {
+impl yew_agent::Worker for VideoWorker {
     type Reach = Public<Self>;
 
     type Message = ();
 
-    type Input = AudioWorkerInput;
+    type Input = VideoWorkerInput;
 
-    type Output = AudioWorkerOutput;
+    type Output = VideoWorkerOutput;
 
     fn create(link: WorkerLink<Self>) -> Self {
         Self { 
@@ -43,9 +46,9 @@ impl yew_agent::Worker for AudioWorker {
 
     fn handle_input(&mut self, msg: Self::Input, id: yew_agent::HandlerId) {
         log::info!("message from another id: {:?}, msg: {}", id, msg.file);
-        let url = format!("hello output id: {:?}, msg: {}", id, msg.file);
-        // self.audio.decode(m)
-        let output = Self::Output { url };
+        let data = VideoPacket::get_video_data(msg.packet);
+        let url = "kdfjdkf".to_string();
+        let output = Self::Output { data };
         self.link.respond(id, output)
     }
 

@@ -1,9 +1,10 @@
+use std::sync::Arc;
+
+use js_sys::Uint8Array;
 use serde::{Serialize, Deserialize};
-use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk};
+use web_sys::{EncodedAudioChunkInit, EncodedAudioChunk, EncodedVideoChunk, EncodedVideoChunkInit};
 
 use crate::wrappers::{EncodedVideoChunkTypeWrapper, EncodedAudioChunkTypeWrapper};
-
-
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct VideoPacket {
     pub data: Vec<u8>,
@@ -33,6 +34,42 @@ impl VideoPacket {
             duration,
             sequence_number,
         }
+    }
+
+    pub fn get_encoded_video_chunk(packet: Arc<VideoPacket>) -> EncodedVideoChunk {
+        let video_data = VideoPacket::get_video_data(packet);
+        VideoPacket::get_encoded_video_chunk_from_data(Arc::new(video_data))
+    }
+
+    pub fn get_encoded_video_chunk_from_data(video_data: Arc<VideoPacket>) -> EncodedVideoChunk {
+        let data = Uint8Array::from(video_data.data.as_ref());
+        let chunk_type = EncodedVideoChunkTypeWrapper::from(video_data.chunk_type.as_str()).0;
+        let mut encoded_chunk_init = EncodedVideoChunkInit::new(&data, video_data.timestamp, chunk_type);
+        encoded_chunk_init.duration(video_data.duration);
+        let encoded_video_chunk = EncodedVideoChunk::new(
+            &encoded_chunk_init
+        ).unwrap();
+        encoded_video_chunk
+    }
+
+    pub fn get_video_data(packet: Arc<VideoPacket>) -> VideoPacket{
+        let chunk_type = EncodedVideoChunkTypeWrapper::from(packet.chunk_type.as_str()).0;
+        let video_data = Uint8Array::new_with_length(packet.data.len().try_into().unwrap());
+        video_data.copy_from(&packet.data);
+        let video_chunk = EncodedVideoChunkInit::new(&video_data, packet.timestamp, chunk_type);
+        let chunk = EncodedVideoChunk::new(&video_chunk).unwrap();
+        
+        let mut video_vector = vec![0u8; chunk.byte_length() as usize];
+        let video_message = video_vector.as_mut();
+        chunk.copy_to_with_u8_array(video_message);
+        let data = VideoPacket {
+            data: video_message.to_vec(),
+            chunk_type: packet.chunk_type.clone(),
+            timestamp: packet.timestamp,
+            duration: packet.duration,
+            sequence_number: packet.sequence_number
+        };
+        data
     }
 }
 

@@ -1,9 +1,10 @@
 use std::{rc::Rc, cell::RefCell, sync::Arc, collections::HashMap};
 
 use wasm_peers::{one_to_many::MiniClient, ConnectionType, SessionId, many_to_many::NetworkManager, UserId};
+use yew_agent::Bridged;
 
 
-use crate::{models::{audio::Audio, video::Video}, utils::{ inputs::{Message, ManyMassage}, device::{create_audio_decoder, create_video_decoder_video, VideoElementKind, create_video_decoder_video_screen}, dom::{on_visible_el, create_video_id, remove_element}}, crypto::aes::Aes128State, stores::client_store::ClientMsg};
+use crate::{models::{audio::Audio, video::Video}, utils::{ inputs::{Message, ManyMassage}, device::{create_audio_decoder, create_video_decoder_video, VideoElementKind, create_video_decoder_video_screen}, dom::{on_visible_el, create_video_id, remove_element}}, crypto::aes::Aes128State, stores::client_store::ClientMsg, agent::{VideoWorker, VideoWorkerInput}};
 
 #[derive(Clone, PartialEq)]
     pub struct ClientManager {
@@ -57,16 +58,25 @@ impl ClientManager {
             }
         };
 
-        let video = create_video_decoder_video("render".to_owned(), VideoElementKind::ReadyId);
+        let video = Rc::new(RefCell::new(create_video_decoder_video("render".to_owned(), VideoElementKind::ReadyId)));
         let screen_share_decoder = create_video_decoder_video_screen("screen_share".to_owned(), VideoElementKind::ScreenBox);
         
         let on_action = on_action.clone();
         let audio = self.audio.clone();
+        let worker = {
+            let video = video.clone();
+            Rc::new(RefCell::new(VideoWorker::bridge(Rc::new(move |out| {
+                let video_data = out.data;
+                let _ = video.borrow_mut().decode_break_data(Arc::new(video_data));
+            }))))
+        };
+           
         let on_message_callback = {
             let _aes = Arc::new(Aes128State::new(true));
             let mut video = video.clone();
             let mut screen_share_decoder = screen_share_decoder.clone();
             let audio = audio.clone();
+            let worker = worker.clone();
             move |message: Message| {
                 match message {
                     Message::HostToHost { 
@@ -89,9 +99,11 @@ impl ClientManager {
                     Message::HostVideo { 
                         message,
                     } => {
-                        if video.on_video {
-                             let _ = video.decode_break(Arc::new(message));
-                        }
+                        
+                        worker.borrow_mut().send(VideoWorkerInput{ packet: Arc::new(message.clone()), file: "todo!()".to_string() });
+                        // if video.on_video {
+                            // let _ = video.decode_break(Arc::new(message));
+                        // }
                     },
                     Message::HostIsScreenShare { 
                         message
@@ -112,14 +124,14 @@ impl ClientManager {
                         audio.borrow_mut().on_speakers = !audio.borrow().on_speakers;
                     },
                     Message::HostSwitchVideo => {
-                        video.video_start = !video.video_start;
-                        if video.video_start {
-                            video.video_decoder.configure(&video.video_config);
-                            video.on_video = !video.on_video;
-                            video.check_key = true;
+                        video.borrow_mut().video_start = !video.borrow().video_start;
+                        if video.borrow().video_start {
+                            video.borrow().video_decoder.configure(&video.borrow().video_config);
+                            video.borrow_mut().on_video = !video.borrow().on_video;
+                            video.borrow_mut().check_key = true;
                         } else {
-                            video.on_video = !video.on_video;
-                            video.video_decoder.reset();
+                            video.borrow_mut().on_video = !video.borrow().on_video;
+                            video.borrow().video_decoder.reset();
                         }
                     },
                     Message::HostSwitchArea {
