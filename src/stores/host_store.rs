@@ -34,6 +34,10 @@ impl HostStore {
         self.host_manager = Some(Rc::new(RefCell::new(host_manager)));
     }
 
+    pub fn get_host_manager(&self) -> Option<Rc<RefCell<HostManager>>> {
+        self.host_manager.clone()
+    }
+
     pub fn get_mini_server(&self) -> MiniServer {
         self.host_manager
             .as_ref()
@@ -98,6 +102,8 @@ impl Reducer<HostStore> for Msg {
         match self {
             Msg::Init(session_id) => {
                 state.init(session_id);
+                let hm = state.get_host_manager();
+                media_dispatch.apply(HostMediaMsg::Init(hm));
             }
             Msg::SendMessage(message) => {
                 let _ = state.get_mini_server().send_message_to_all(&message);

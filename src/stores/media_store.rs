@@ -1,11 +1,11 @@
 use std::{rc::Rc, cell::RefCell};
 
 use gloo_timers::callback::Timeout;
-use wasm_peers::UserId;
+use wasm_peers::{UserId, one_to_many::MiniServer};
 use web_sys::MouseEvent;
 use yewdux::{store::{Store, Reducer}, prelude::Dispatch};
 
-use crate::{encoders::{camera_encoder::CameraEncoder, microphone_encoder::MicrophoneEncoder, screen_encoder::ScreenEncoder}, stores::client_store::{ClientStore, ClientMsg}, utils::{inputs::{ManyMassage, ClientMessage, Message}, dom::{on_visible_el, switch_visible_el}}, models::packet::{AudioPacket, VideoPacket}, constants::VIDEO_ELEMENT_ID};
+use crate::{encoders::{camera_encoder::CameraEncoder, microphone_encoder::MicrophoneEncoder, screen_encoder::ScreenEncoder}, stores::client_store::{ClientStore, ClientMsg}, utils::{inputs::{ManyMassage, ClientMessage, Message}, dom::{on_visible_el, switch_visible_el}}, models::packet::{AudioPacket, VideoPacket}, constants::VIDEO_ELEMENT_ID, components::multi::host::host_manager::HostManager};
 
 use super::host_store::{HostStore, self};
 
@@ -18,6 +18,7 @@ pub struct MediaStore {
     screen: Option<ScreenEncoder>,
     is_communication: Rc<RefCell<bool>>,
     is_screen: Rc<RefCell<bool>>,
+    host_manager: Option<Rc<RefCell<HostManager>>>,
 }
 
 impl Default for MediaStore {
@@ -28,11 +29,25 @@ impl Default for MediaStore {
             screen: Some(ScreenEncoder::new()),
             is_communication: Rc::new(RefCell::new(true)),
             is_screen: Rc::new(RefCell::new(false)),
+            host_manager: None,
         }
     }
 }
 
 impl MediaStore {
+    pub fn init(&mut self, host_manager: Option<Rc<RefCell<HostManager>>>) {
+        self.host_manager = host_manager;
+    }
+
+    pub fn get_mini_server(&self) -> MiniServer {
+        self.host_manager
+            .as_ref()
+            .expect("cannot get host manager")
+            .borrow()
+            .mini_server
+            .clone()
+    }
+
     pub fn get_camera(&self) -> &CameraEncoder {
         self.camera.as_ref().unwrap()
     }
@@ -66,6 +81,7 @@ impl MediaStore {
 }
 
 pub enum HostMediaMsg {
+    Init(Option<Rc<RefCell<HostManager>>>),
     AudioDeviceChanged(String),
     EnableMicrophone(bool),
     VideoDeviceChanged(String),
@@ -82,6 +98,9 @@ impl Reducer<MediaStore> for HostMediaMsg {
         let dispatch = Dispatch::<MediaStore>::new();
         let global_dispatch = Dispatch::<HostStore>::new();
         match self {
+            HostMediaMsg::Init(host_manager) => {
+                state.init(host_manager);
+            }
             HostMediaMsg::AudioDeviceChanged(audio) => {
                 if state.get_mut_microphone().select(audio) {
                     let timeout = Timeout::new(1000, move || {
@@ -92,14 +111,14 @@ impl Reducer<MediaStore> for HostMediaMsg {
             },
             HostMediaMsg::EnableMicrophone(should_enable) => {
                 if should_enable {
-                    let global_dispatch = global_dispatch.clone();
+                    let ms = state.get_mini_server();
                     let on_audio = move |chunk: web_sys::EncodedAudioChunk| {
                         
                         let audio_packet = AudioPacket::new(chunk);
                         let message = Message::HostAudio { 
                             packet: audio_packet
-                        };
-                        global_dispatch.apply(host_store::Msg::SendMessage(message));              
+                        };   
+                        let _ = ms.send_message_to_all(&message);
                     };              
                     state.microphone.as_mut().unwrap().start(
                         on_audio

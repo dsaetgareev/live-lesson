@@ -38,10 +38,9 @@ pub fn welcome_host() -> Html {
     let on_init = {
         let to_host = to_host.clone();
         let session_id = session_id.clone();
-        let dispatch = dispatch.clone();
+        let dispatch = dispatch.clone();       
         move |_e: MouseEvent| {
             to_host.set(true);
-            // let _audio = create_audio_decoder();
             dispatch.apply(host_store::Msg::Init(*session_id));
         }
     };

@@ -76,7 +76,6 @@ pub mod utils;
 pub mod components;
 pub mod models;
 pub mod stores;
-pub mod agent;
 
 pub use app::{App, Route};
 // pub use config::CONFIG;
