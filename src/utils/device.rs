@@ -230,6 +230,7 @@ pub fn create_audio_decoder() -> Audio {
                     error!("write chunk error {:?}", e);
                 };
                 writer.release_lock();
+                audio_data.close();
             });
         }) {
             error!("error {:?}", e);
