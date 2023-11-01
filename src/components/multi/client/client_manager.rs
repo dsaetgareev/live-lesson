@@ -1,7 +1,7 @@
 use std::{rc::Rc, cell::RefCell, sync::Arc, collections::HashMap};
 
 use wasm_peers::{one_to_many::MiniClient, ConnectionType, SessionId, many_to_many::NetworkManager, UserId};
-use crate::{models::{audio::Audio, video::Video}, utils::{ inputs::{Message, ManyMassage}, device::{create_audio_decoder, create_video_decoder_video, VideoElementKind, create_video_decoder_video_screen}, dom::{on_visible_el, create_video_id, remove_element}}, crypto::aes::Aes128State, stores::client_store::ClientMsg};
+use crate::{models::{audio::Audio, video::Video}, utils::{ inputs::{Message, ManyMassage}, device::{create_audio_decoder, create_video_decoder_video, VideoElementKind, create_video_decoder_video_screen}, dom::{create_video_id, remove_element, switch_visible_el}}, crypto::aes::Aes128State, stores::client_store::ClientMsg};
 
 #[derive(Clone, PartialEq)]
     pub struct ClientManager {
@@ -95,7 +95,8 @@ impl ClientManager {
                     Message::HostIsScreenShare { 
                         message
                     } => {
-                        on_visible_el(message, "container", "shcreen_container");
+                        log::error!("is screen {}", message);
+                         on_action.borrow()(ClientMsg::HostIsScreenShare(message));
                     },
                     Message::HostScreenShare { 
                         message
@@ -121,6 +122,11 @@ impl ClientManager {
                             video.borrow().video_decoder.reset();
                         }
                     },
+                    Message::HostSWitchSelfVideo { 
+                        message
+                    } => {
+                        switch_visible_el(message, "render");
+                    }                    
                     Message::HostSwitchArea {
                         message 
                     } => {

@@ -2,6 +2,8 @@
 use yew::prelude::*;
 use yewdux::prelude::use_store;
 
+use crate::components::common::battons::VideoButton;
+use crate::components::common::video::VideoBox;
 use crate::components::multi::host::client_area::ClientArea;
 use crate::components::multi::host::client_items::ClientItems;
 use crate::components::multi::host::host_area::HostArea;
@@ -44,6 +46,7 @@ pub fn screen_share() -> Html {
     let (_state, dispatch) = use_store::<MediaStore>();
     let screen_share_cb = {
         Callback::from(move |_| {
+            log::error!("in sreen btn");
             dispatch.apply(HostMediaMsg::EnableScreenShare(true));
         })
     };
@@ -51,6 +54,32 @@ pub fn screen_share() -> Html {
         <div>
             <button onclick={ screen_share_cb }>{"Демонстрация экрана"}</button>
         </div>
+    }
+}
+
+#[function_component(HostVideo)]
+pub fn host_video() -> Html {
+
+    let (state, dispatch) = use_store::<MediaStore>();
+    let on_video_btn = {
+        let dispatch = dispatch.clone();
+        let state = state.clone();
+        Callback::from(move |_event: MouseEvent| {
+            let on_video = state.get_camera().get_enabled();
+            dispatch.apply(HostMediaMsg::SwitchVedeo(!on_video));
+        })
+    };
+
+    html! {
+        <>
+            <VideoButton { on_video_btn } enabled={ state.get_camera().get_enabled() }/>
+            <VideoBox 
+                video_id={ VIDEO_ELEMENT_ID }
+                video_class={ "client_canvas vis".to_string() }
+                placeholder_id={ "video-logo".to_string() }
+                placeholder_class={ "unvis".to_string() }
+            />
+        </>
     }
 }
 
@@ -72,7 +101,7 @@ pub fn host() -> Html {
             <div class="host-video">
                 <Devices />
                 <ScreenShare />
-                <video class="client_canvas" autoplay=true id={VIDEO_ELEMENT_ID}></video>
+                <HostVideo />
             </div>
                    
             

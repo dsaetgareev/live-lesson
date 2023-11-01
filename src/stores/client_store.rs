@@ -2,7 +2,7 @@ use std::rc::Rc;
 use wasm_peers::{SessionId, one_to_many::MiniClient, many_to_many::NetworkManager};
 use yewdux::{store::{Store, Reducer}, prelude::Dispatch};
 
-use crate::{components::multi::client::client_manager::ClientManager, models::{audio::Audio, commons::{AreaKind, InitUser}}, utils::inputs::{ClientMessage, ManyMassage, PaintAction}};
+use crate::{components::multi::client::client_manager::ClientManager, models::{audio::Audio, commons::{AreaKind, InitUser}}, utils::{inputs::{ClientMessage, ManyMassage, PaintAction}, dom::{on_visible_el, switch_visible_el}}};
 
 use super::{client_props_store::{ClientPropsStore, ClientPropsMsg}, host_props_store::{HostPropsStore, ClientHostPropsMsg}, media_store::{MediaStore, ClientMediaMsg}};
 
@@ -72,6 +72,7 @@ pub enum ClientMsg {
         area_kind: AreaKind,
     },
     InitHostAra(InitUser),
+    HostIsScreenShare(bool),
     HostSwitchArea(AreaKind),
     OpenPaint,
     HostPaint {
@@ -128,6 +129,11 @@ impl Reducer<ClientStore> for ClientMsg {
             },
             ClientMsg::InitHostAra(user) => {
                 host_props_dispatch.apply(ClientHostPropsMsg::InitHost(user));
+            }
+            ClientMsg::HostIsScreenShare(is_share) => {
+                on_visible_el(is_share, "container", "shcreen_container");
+                switch_visible_el(!is_share, "video-container");
+                media_dispatch.apply(ClientMediaMsg::SwitchVedeo(!is_share));               
             }
             ClientMsg::HostSwitchArea(area_kind) => {
                 host_props_dispatch.apply(ClientHostPropsMsg::HostSwitchArea(area_kind));

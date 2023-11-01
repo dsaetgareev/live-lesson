@@ -36,6 +36,9 @@ pub enum Message {
     },
     HostSwitchAudio,
     HostSwitchVideo,
+    HostSWitchSelfVideo {
+        message: bool
+    },
     HostSwitchArea {
         message: AreaKind
     },

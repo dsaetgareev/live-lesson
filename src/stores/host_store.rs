@@ -114,7 +114,7 @@ impl Reducer<HostStore> for Msg {
             Msg::AddClient(user_id) => {
                 host_area_dispatch.apply(HostHostMsg::AddClient(user_id));
                 client_items_dispatch.apply(ClientItemMsg::AddClient(user_id));
-                media_dispatch.apply(HostMediaMsg::IsScreen(user_id));
+                media_dispatch.apply(HostMediaMsg::SendIsScreenState(user_id));
             }
             Msg::InitClient(user_id, init_user) => {
                 client_items_dispatch.apply(ClientItemMsg::InitClient(user_id, init_user));

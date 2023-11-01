@@ -44,22 +44,27 @@ pub fn item_content() -> Html {
 
     let on_video_btn = {
         let dispatch = dispatch.clone();
-        Callback::from(move |event: MouseEvent| {
-            dispatch.apply(ClientMediaMsg::SwitchVedeo(event));
+        let state = state.clone();
+        Callback::from(move |_event: MouseEvent| {
+            let on_video = state.get_camera().get_enabled();
+            dispatch.apply(ClientMediaMsg::SwitchVedeo(!on_video));
         })
     };
 
     html! {
         <div class="content-item">
             <VideoButton { on_video_btn } enabled={ state.get_camera().get_enabled() }/>
-            <VideoBox 
+            <div id="video-container" class=" vis">
+                <VideoBox 
                 video_id={ VIDEO_ELEMENT_ID }
                 video_class={ "client_canvas vis".to_string() }
                 placeholder_id={ "video-logo".to_string() }
                 placeholder_class={ "unvis".to_string() }
-            />
-            <div id="video-box" class={ is_visible }>
+                />
+                <div id="video-box" class={ is_visible }>
+                </div>
             </div>
+            
         </div>
     }
 }
@@ -78,14 +83,14 @@ pub fn client() -> Html {
         <div id="container" class="container">
             <div class="client-container">
                 <ItemContent />
-                <div class=".content-item">
+                <div class="content-item">
                     <ClientArea />
                 </div>
-                <div class=".content-item">
+                <div class="content-item">
                     <HostArea />
                 </div>
-                <div class=".content-item">                                             
-                    <video id="render" autoplay=true class="client_canvas"></video>
+                <div class="content-item">                                             
+                    <video id="render" autoplay=true class="client_canvas vis"></video>
                 </div>
             </div>
             <Devices />
