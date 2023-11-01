@@ -44,6 +44,9 @@ impl MicrophoneEncoder {
     pub fn set_enabled(&mut self, value: bool) -> bool {
         self.state.set_enabled(value)
     }
+     pub fn get_enabled(&self) -> bool {
+        self.state.is_enabled()
+    }
     pub fn select(&mut self, device: String) -> bool {
         self.state.select(device)
     }

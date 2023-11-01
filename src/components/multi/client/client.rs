@@ -1,8 +1,8 @@
 use web_sys::MouseEvent;
-use yew::{html, Html, Callback, function_component, use_effect};
+use yew::{html, Html, Callback, function_component, use_effect, use_state};
 use yewdux::prelude::use_store;
 
-use crate::components::common::battons::VideoButton;
+use crate::components::common::battons::{VideoButton, AudioButton};
 use crate::components::common::video::VideoBox;
 use crate::components::multi::client::client_area::ClientArea;
 use crate::components::multi::client::host_area::HostArea;
@@ -39,22 +39,41 @@ pub fn devices() -> Html {
 pub fn item_content() -> Html {
 
     let (state, dispatch) = use_store::<MediaStore>();
+    let video_enabled = use_state(|| !state.get_camera().get_enabled());
+    let audio_enabled = use_state(|| !state.get_microphone().get_enabled());
 
     let is_visible = get_vis_class(state.is_communication());
 
     let on_video_btn = {
         let dispatch = dispatch.clone();
         let state = state.clone();
+        let video_enabled = video_enabled.clone();
         Callback::from(move |_event: MouseEvent| {
             let on_video = state.get_camera().get_enabled();
+            video_enabled.set(on_video);
             dispatch.apply(ClientMediaMsg::SwitchVedeo(!on_video));
+        })
+    };
+
+    let on_audio_btn = {
+        let dispatch = dispatch.clone();
+        let state = state.clone();
+        let audio_enabled = audio_enabled.clone();
+        Callback::from(move |_event: MouseEvent| {
+            let on_audio = state.get_microphone().get_enabled();
+            audio_enabled.set(on_audio);
+            dispatch.apply(ClientMediaMsg::SwitchMic(!on_audio));
         })
     };
 
     html! {
         <div class="content-item">
-            <VideoButton { on_video_btn } enabled={ state.get_camera().get_enabled() }/>
+                               
             <div id="video-container" class=" vis">
+                <div class="btn-container">
+                    <VideoButton on_btn={ on_video_btn } enabled={ *video_enabled }/>
+                    <AudioButton on_btn={ on_audio_btn } enabled={ *audio_enabled }/>
+                </div>
                 <VideoBox 
                 video_id={ VIDEO_ELEMENT_ID }
                 video_class={ "client_canvas vis".to_string() }

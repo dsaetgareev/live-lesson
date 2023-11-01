@@ -2,7 +2,7 @@
 use yew::prelude::*;
 use yewdux::prelude::use_store;
 
-use crate::components::common::battons::VideoButton;
+use crate::components::common::battons::{VideoButton, AudioButton};
 use crate::components::common::video::VideoBox;
 use crate::components::multi::host::client_area::ClientArea;
 use crate::components::multi::host::client_items::ClientItems;
@@ -61,18 +61,35 @@ pub fn screen_share() -> Html {
 pub fn host_video() -> Html {
 
     let (state, dispatch) = use_store::<MediaStore>();
+    let video_enabled = use_state(|| !state.get_camera().get_enabled());
+    let audio_enabled = use_state(|| !state.get_microphone().get_enabled());
+
     let on_video_btn = {
         let dispatch = dispatch.clone();
         let state = state.clone();
+        let video_enabled = video_enabled.clone();
         Callback::from(move |_event: MouseEvent| {
             let on_video = state.get_camera().get_enabled();
+            video_enabled.set(on_video);
             dispatch.apply(HostMediaMsg::SwitchVedeo(!on_video));
+        })
+    };
+
+    let on_audio_btn = {
+        let dispatch = dispatch.clone();
+        let state = state.clone();
+        let audio_enabled = audio_enabled.clone();
+        Callback::from(move |_event: MouseEvent| {
+            let on_audio = state.get_microphone().get_enabled();
+            audio_enabled.set(on_audio);
+            dispatch.apply(HostMediaMsg::SwitchMic(!on_audio));
         })
     };
 
     html! {
         <>
-            <VideoButton { on_video_btn } enabled={ state.get_camera().get_enabled() }/>
+            <VideoButton on_btn={ on_video_btn } enabled={ *video_enabled }/>
+            <AudioButton on_btn={ on_audio_btn } enabled={ *audio_enabled }/>
             <VideoBox 
                 video_id={ VIDEO_ELEMENT_ID }
                 video_class={ "client_canvas vis".to_string() }

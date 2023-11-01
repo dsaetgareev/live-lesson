@@ -117,6 +117,8 @@ yew_icons = {version = "0.8", features = [
     "LucideArrowUpCircle",
     "BootstrapCameraVideoFill",
     "BootstrapCameraVideoOffFill",
+    "BootstrapMicFill",
+    "BootstrapMicMuteFill",
     "FontAwesomeSolidHorseHead",
     "HeroiconsSolidPaintBrush",
     "BootstrapPeople",

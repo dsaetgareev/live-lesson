@@ -83,6 +83,7 @@ pub enum HostMediaMsg {
     Init(Option<Rc<RefCell<HostManager>>>),
     AudioDeviceChanged(String),
     EnableMicrophone(bool),
+    SwitchMic(bool),
     VideoDeviceChanged(String),
     EnableVideo(bool),
     SwitchVedeo(bool),
@@ -125,6 +126,15 @@ impl Reducer<MediaStore> for HostMediaMsg {
                     );
                 }               
             },
+            HostMediaMsg::SwitchMic(on_mic) => {
+                state.get_mut_microphone().set_enabled(on_mic);
+                if on_mic {
+                    let timeout = Timeout::new(1000, move || {
+                        dispatch.apply(HostMediaMsg::EnableMicrophone(true));
+                    });
+                    timeout.forget();
+                }
+            }
             HostMediaMsg::VideoDeviceChanged(video) => {
                 if state.get_mut_camera().select(video) {
                     let timeout = Timeout::new(1000, move || {
@@ -216,6 +226,7 @@ impl Reducer<MediaStore> for HostMediaMsg {
 pub enum ClientMediaMsg {
     AudioDeviceChanged(String),
     EnableMicrophone(bool),
+    SwitchMic(bool),
     VideoDeviceChanged(String),
     EnableVideo(bool),
     SwitchVedeo(bool),
@@ -260,6 +271,15 @@ impl Reducer<MediaStore> for ClientMediaMsg {
                     );                
                 }
             },
+            ClientMediaMsg::SwitchMic(on_mic) => {
+                state.get_mut_microphone().set_enabled(on_mic);
+                if on_mic {
+                    let timeout = Timeout::new(1000, move || {
+                        dispatch.apply(ClientMediaMsg::EnableMicrophone(true));
+                    });
+                    timeout.forget();
+                }
+            }
             ClientMediaMsg::VideoDeviceChanged(video) => {
                 if state.get_mut_camera().select(video) {
                     let timeout = Timeout::new(1000, move || {
