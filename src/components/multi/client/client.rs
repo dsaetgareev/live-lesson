@@ -35,14 +35,12 @@ pub fn devices() -> Html {
     }
 }
 
-#[function_component(ItemContent)]
-pub fn item_content() -> Html {
+#[function_component(ClientVideo)]
+pub fn client_video() -> Html {
 
     let (state, dispatch) = use_store::<MediaStore>();
     let video_enabled = use_state(|| !state.get_camera().get_enabled());
     let audio_enabled = use_state(|| !state.get_microphone().get_enabled());
-
-    let is_visible = get_vis_class(state.is_communication());
 
     let on_video_btn = {
         let dispatch = dispatch.clone();
@@ -65,21 +63,35 @@ pub fn item_content() -> Html {
             dispatch.apply(ClientMediaMsg::SwitchMic(!on_audio));
         })
     };
+    
+    html! {
+        <>
+            <div class="btn-container">
+                <VideoButton on_btn={ on_video_btn } enabled={ *video_enabled }/>
+                <AudioButton on_btn={ on_audio_btn } enabled={ *audio_enabled }/>
+            </div>
+            <VideoBox 
+                video_id={ VIDEO_ELEMENT_ID }
+                video_class={ "client_canvas vis".to_string() }
+                placeholder_id={ "video-logo".to_string() }
+                placeholder_class={ "unvis".to_string() }
+            />
+        </>
+    }
+}
+
+#[function_component(ItemContent)]
+pub fn item_content() -> Html {   
+    let (state, _dispatch) = use_store::<MediaStore>();
+
+    let is_visible = get_vis_class(state.is_communication());
+
 
     html! {
         <div class="content-item">
                                
             <div id="video-container" class=" vis">
-                <div class="btn-container">
-                    <VideoButton on_btn={ on_video_btn } enabled={ *video_enabled }/>
-                    <AudioButton on_btn={ on_audio_btn } enabled={ *audio_enabled }/>
-                </div>
-                <VideoBox 
-                video_id={ VIDEO_ELEMENT_ID }
-                video_class={ "client_canvas vis".to_string() }
-                placeholder_id={ "video-logo".to_string() }
-                placeholder_class={ "unvis".to_string() }
-                />
+                <ClientVideo />                
                 <div id="video-box" class={ is_visible }>
                 </div>
             </div>

@@ -46,6 +46,7 @@ impl HostManager {
             let video_decoders = self.video_decoders.clone();
             let audio_decoders = self.audio_decoders.clone();
             move |user_id: UserId| {
+                log::error!("add client {}", user_id.to_string());
                 let video_id = create_video_id(user_id.into_inner().to_string());
                 video_decoders.borrow_mut()
                     .insert(

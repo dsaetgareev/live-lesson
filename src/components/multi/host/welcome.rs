@@ -2,14 +2,17 @@ use std::str::FromStr;
 
 use wasm_peers::{SessionId, get_random_session_id};
 use web_sys::MouseEvent;
-use yew::{ html, function_component, Html, use_state};
+use yew::{ html, function_component, Html, use_state, use_effect};
 use yewdux::prelude::use_store;
 
-use crate::{components::multi::host::host::Host, utils, stores::host_store::{HostStore, self}};
+use crate::{components::multi::host::host::{Host, HostVideo, Devices}, utils, stores::host_store::{HostStore, self}};
 
 
 #[function_component(WelcomeHost)]
 pub fn welcome_host() -> Html {
+
+    let (_state, dispatch) = use_store::<HostStore>();
+    let to_host = use_state(|| false);
 
     let session_id = use_state(|| {
         let query_params = utils::dom::get_query_params_multi();
@@ -30,10 +33,7 @@ pub fn welcome_host() -> Html {
             }
         };
         session_id
-    });
-
-    let (_state, dispatch) = use_store::<HostStore>();
-    let to_host = use_state(|| false);
+    });    
 
     let on_init = {
         let to_host = to_host.clone();
@@ -41,19 +41,24 @@ pub fn welcome_host() -> Html {
         let dispatch = dispatch.clone();       
         move |_e: MouseEvent| {
             to_host.set(true);
-            dispatch.apply(host_store::Msg::Init(*session_id));
+            // dispatch.apply(host_store::Msg::Init(*session_id));
         }
     };
+
     html! {
         if *to_host {
             <Host />
         } else {
-            <button onclick={ on_init }>
-                { 
-                    "Заходи дорогой!"
-                }
-                
-            </button>
+            <>
+                <HostVideo />
+                <button onclick={ on_init }>
+                    { 
+                        "Подключиться к встрече"
+                    }                    
+                </button>
+                <Devices />
+            </>
+            
         }
     }
 }

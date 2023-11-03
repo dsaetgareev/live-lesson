@@ -112,14 +112,13 @@ impl Reducer<MediaStore> for HostMediaMsg {
             },
             HostMediaMsg::EnableMicrophone(should_enable) => {
                 if should_enable {
-                    let ms = state.get_mini_server();
                     let on_audio = move |chunk: web_sys::EncodedAudioChunk| {
                         
                         let audio_packet = AudioPacket::new(chunk);
                         let message = Message::HostAudio { 
                             packet: audio_packet
                         };   
-                        let _ = ms.send_message_to_all(&message);
+                        global_dispatch.apply(host_store::Msg::SendMessage(message));
                     };              
                     state.microphone.as_mut().unwrap().start(
                         on_audio

@@ -88,8 +88,10 @@ pub fn host_video() -> Html {
 
     html! {
         <>
-            <VideoButton on_btn={ on_video_btn } enabled={ *video_enabled }/>
-            <AudioButton on_btn={ on_audio_btn } enabled={ *audio_enabled }/>
+            <div class="btn-container">
+                <VideoButton on_btn={ on_video_btn } enabled={ *video_enabled }/>
+                <AudioButton on_btn={ on_audio_btn } enabled={ *audio_enabled }/>
+            </div>            
             <VideoBox 
                 video_id={ VIDEO_ELEMENT_ID }
                 video_class={ "client_canvas vis".to_string() }

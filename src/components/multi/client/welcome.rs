@@ -5,7 +5,7 @@ use web_sys::MouseEvent;
 use yew::{use_state, function_component, Html, html};
 use yewdux::prelude::use_store;
 
-use crate::{stores::client_store::{ClientStore, ClientMsg}, utils, components::multi::client::client::Client};
+use crate::{stores::client_store::{ClientStore, ClientMsg}, utils, components::multi::client::client::{Client, ClientVideo, Devices}};
 
 
 #[function_component(WelcomeClient)]
@@ -36,12 +36,12 @@ pub fn welcome_host() -> Html {
     let to_client = use_state(|| false);
 
     let on_init = {
-        let to_host = to_client.clone();
+        let to_client = to_client.clone();
         let session_id = session_id.clone();
         let dispatch = dispatch.clone();
         move |_e: MouseEvent| {
-            dispatch.apply(ClientMsg::Init(*session_id));
-            to_host.set(true);
+            // dispatch.apply(ClientMsg::Init(*session_id));
+            to_client.set(true);
         }
     };
     html! {
@@ -49,12 +49,16 @@ pub fn welcome_host() -> Html {
             <Client />
             
         } else {
-            <button onclick={ on_init }>
-                { 
-                    "Заходи дорогой!"
-                }
-                
-            </button>
+            <>
+                <ClientVideo />
+                <button onclick={ on_init }>
+                    { 
+                        "Заходи дорогой!"
+                    }                    
+                </button>
+                <Devices />
+            </>
+            
         }
     }
 }

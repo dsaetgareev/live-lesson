@@ -96,6 +96,12 @@ impl Reducer<ClientStore> for ClientMsg {
         match self {
             ClientMsg::Init(session_id) => {
                 state.init(session_id);
+                let dispatch = dispatch.clone();
+                let on_action = move |msg: ClientMsg| {
+                    dispatch.apply(msg);
+                };
+                state.get_client_manager().unwrap().init(on_action);
+                state.get_client_manager().unwrap().many_init();
             }
             ClientMsg::InitClientManager => {
                 let dispatch = dispatch.clone();
