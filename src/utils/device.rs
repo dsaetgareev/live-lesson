@@ -9,7 +9,7 @@ use web_sys::{VideoDecoder, VideoFrame, VideoDecoderInit, VideoDecoderConfig, Au
 
 use crate::{constants::{VIDEO_CODEC, AUDIO_CHANNELS, AUDIO_CODEC, AUDIO_SAMPLE_RATE}, models::{video::Video, audio::Audio}};
 
-use super::{dom::{get_window, get_document, get_element}, config::configure_audio_context};
+use super::{dom::{get_window, get_document, get_element, self}, config::configure_audio_context};
 
 #[derive(Clone, PartialEq)]
 pub enum VideoElementKind {
@@ -152,11 +152,7 @@ fn create_video_element(video_elem_id: String, el_kind: VideoElementKind) -> Htm
             video_element
         }
         VideoElementKind::ClentBox => {
-            let video_element = get_document()
-                .create_element("video")
-                .expect("cannot create video element")
-                .dyn_into::<web_sys::HtmlVideoElement>()
-                .expect("cannot cast video element");
+            let video_element = dom::create_video_element();
 
             video_element.set_id(&video_elem_id);
             video_element.set_class_name("item-canvas");
@@ -167,12 +163,23 @@ fn create_video_element(video_elem_id: String, el_kind: VideoElementKind) -> Htm
             video_element
         },
         VideoElementKind::ReadyId => {
-            let video_element = get_window().unwrap()
+            let video_element = match get_window().unwrap()
                 .document()
                 .unwrap()
-                .get_element_by_id(&video_elem_id) // todo 
-                .unwrap()
-                .unchecked_into::<HtmlVideoElement>();
+                .get_element_by_id(&video_elem_id) 
+            {
+                Some(video_element) => {
+                    video_element.unchecked_into::<HtmlVideoElement>()
+                },
+                None => {
+                    let video_element = dom::create_video_element();
+                    video_element.set_id(&video_elem_id);
+                    video_element.set_class_name("item-canvas");
+                    video_element.set_autoplay(true);
+                    video_element
+                },
+            };
+               
             video_element
         },
         VideoElementKind::ScreenBox => {
@@ -181,12 +188,7 @@ fn create_video_element(video_elem_id: String, el_kind: VideoElementKind) -> Htm
                     video_element.unchecked_into::<HtmlVideoElement>()
                 },
                 Err(_) => {
-                    let video_element = get_document()
-                        .create_element("video")
-                        .expect("cannot create video element")
-                        .dyn_into::<web_sys::HtmlVideoElement>()
-                        .expect("cannot cast video element");
-
+                    let video_element = dom::create_video_element();
                     video_element.set_id(&video_elem_id);
                     video_element.set_class_name("screen_canvas");
                     video_element.set_autoplay(true);

@@ -1,6 +1,6 @@
 
 use yew::prelude::*;
-use yewdux::prelude::use_store;
+use yewdux::prelude::{use_store, Dispatch};
 
 use crate::components::common::battons::{VideoButton, AudioButton};
 use crate::components::common::video::VideoBox;
@@ -9,6 +9,7 @@ use crate::components::multi::host::client_items::ClientItems;
 use crate::components::multi::host::host_area::HostArea;
 use crate::constants::VIDEO_ELEMENT_ID;
 use crate::media_devices::device_selector::DeviceSelector;
+use crate::stores::host_store::{HostStore, self};
 use crate::stores::media_store::{MediaStore, HostMediaMsg};
 
 pub enum Msg {
@@ -104,6 +105,13 @@ pub fn host_video() -> Html {
 
 #[function_component(Host)]
 pub fn host() -> Html {
+
+    use_effect({
+        let dispatch = Dispatch::<HostStore>::new();
+        move || {
+            dispatch.apply(host_store::Msg::InitHostManager);
+        }
+    });
     html! {
         <div class="container">
             <div id="client-items" class="client-items">

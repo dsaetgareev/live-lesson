@@ -143,6 +143,7 @@ impl Reducer<MediaStore> for HostMediaMsg {
                 }
             },
             HostMediaMsg::EnableVideo(should_enable) => {
+                log::error!("on video {}", should_enable);
                 if should_enable {
                     let global_dispatch = global_dispatch.clone();
                     let on_frame = move |packet: VideoPacket| {

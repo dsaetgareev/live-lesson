@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use wasm_peers::{SessionId, get_random_session_id};
 use web_sys::MouseEvent;
-use yew::{ html, function_component, Html, use_state, use_effect};
+use yew::{ html, function_component, Html, use_state};
 use yewdux::prelude::use_store;
 
 use crate::{components::multi::host::host::{Host, HostVideo, Devices}, utils, stores::host_store::{HostStore, self}};
@@ -38,10 +38,10 @@ pub fn welcome_host() -> Html {
     let on_init = {
         let to_host = to_host.clone();
         let session_id = session_id.clone();
-        let dispatch = dispatch.clone();       
+        let dispatch = dispatch.clone();   
         move |_e: MouseEvent| {
             to_host.set(true);
-            // dispatch.apply(host_store::Msg::Init(*session_id));
+            dispatch.apply(host_store::Msg::Init(*session_id));
         }
     };
 

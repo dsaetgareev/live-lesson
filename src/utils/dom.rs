@@ -1,5 +1,5 @@
 use wasm_bindgen::JsCast;
-use web_sys::{Element, HtmlInputElement, HtmlTextAreaElement, UrlSearchParams, Window, HtmlElement};
+use web_sys::{Element, HtmlInputElement, HtmlTextAreaElement, UrlSearchParams, Window, HtmlElement, HtmlVideoElement};
 use yew::NodeRef;
 
 pub fn global_window() -> Window {
@@ -115,4 +115,13 @@ pub fn get_vis_class(is_vis: bool) -> String {
     } else {
         "unvis".to_string()
     }
+}
+
+pub fn create_video_element() -> HtmlVideoElement {
+    let video_element = get_document()
+        .create_element("video")
+        .expect("cannot create video element")
+        .dyn_into::<web_sys::HtmlVideoElement>()
+        .expect("cannot cast video element");
+    video_element
 }

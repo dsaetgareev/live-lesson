@@ -27,11 +27,6 @@ impl ClientStore {
     pub fn init(&mut self, session_id: SessionId) {
         self.session_id = Some(session_id);
         let client_manager = ClientManager::new(session_id);
-        // let dispatch = Dispatch::<ClientStore>::new();
-        // let on_action = move |msg: ClientMsg| {
-        //     dispatch.apply(msg);
-        // };
-        // client_manager.init(on_action);
         self.client_manager = Some(client_manager);
     }
 
@@ -96,14 +91,9 @@ impl Reducer<ClientStore> for ClientMsg {
         match self {
             ClientMsg::Init(session_id) => {
                 state.init(session_id);
-                let dispatch = dispatch.clone();
-                let on_action = move |msg: ClientMsg| {
-                    dispatch.apply(msg);
-                };
-                state.get_client_manager().unwrap().init(on_action);
-                state.get_client_manager().unwrap().many_init();
             }
             ClientMsg::InitClientManager => {
+                log::error!("init client manager");
                 let dispatch = dispatch.clone();
                 let on_action = move |msg: ClientMsg| {
                     dispatch.apply(msg);
@@ -138,8 +128,7 @@ impl Reducer<ClientStore> for ClientMsg {
             }
             ClientMsg::HostIsScreenShare(is_share) => {
                 on_visible_el(is_share, "container", "shcreen_container");
-                switch_visible_el(!is_share, "video-container");
-                media_dispatch.apply(ClientMediaMsg::SwitchVedeo(!is_share));               
+                switch_visible_el(!is_share, "video-container");         
             }
             ClientMsg::HostSwitchArea(area_kind) => {
                 host_props_dispatch.apply(ClientHostPropsMsg::HostSwitchArea(area_kind));

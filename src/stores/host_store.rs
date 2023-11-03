@@ -24,18 +24,18 @@ impl Default for HostStore {
 
 impl HostStore {
     pub fn init(&mut self, session_id: SessionId) {
-        let mut host_manager = HostManager::new(session_id);
-        let dispatch = Dispatch::<HostStore>::new();
-        let on_action = move |msg: host_store::Msg| {
-            dispatch.apply(msg);
-        };
-        host_manager.init(on_action);
+        let host_manager = HostManager::new(session_id);
+        
         self.session_id = Some(session_id);
-        self.host_manager = Some(Rc::new(RefCell::new(host_manager)));
+        self.set_host_manager(Some(Rc::new(RefCell::new(host_manager))));
     }
 
     pub fn get_host_manager(&self) -> Option<Rc<RefCell<HostManager>>> {
         self.host_manager.clone()
+    }
+
+    pub fn set_host_manager(&mut self, host_manger: Option<Rc<RefCell<HostManager>>>) {
+        self.host_manager = host_manger;
     }
 
     pub fn get_mini_server(&self) -> MiniServer {
@@ -80,6 +80,7 @@ impl HostStore {
 
 pub enum Msg {
     Init(SessionId),
+    InitHostManager,
     SendMessage(Message),
     SendMessageToUser(UserId, Message),
     // Host manager actions
@@ -104,6 +105,13 @@ impl Reducer<HostStore> for Msg {
                 state.init(session_id);
                 let hm = state.get_host_manager();
                 media_dispatch.apply(HostMediaMsg::Init(hm));
+            }
+            Msg::InitHostManager => {
+                let dispatch = Dispatch::<HostStore>::new();
+                let on_action = move |msg: host_store::Msg| {
+                    dispatch.apply(msg);
+                };
+                state.get_host_manager().unwrap().borrow_mut().init(on_action);
             }
             Msg::SendMessage(message) => {
                 let _ = state.get_mini_server().send_message_to_all(&message);

@@ -40,7 +40,7 @@ pub fn welcome_host() -> Html {
         let session_id = session_id.clone();
         let dispatch = dispatch.clone();
         move |_e: MouseEvent| {
-            // dispatch.apply(ClientMsg::Init(*session_id));
+            dispatch.apply(ClientMsg::Init(*session_id));
             to_client.set(true);
         }
     };
@@ -57,6 +57,8 @@ pub fn welcome_host() -> Html {
                     }                    
                 </button>
                 <Devices />
+                <div id="shcreen_container" class="consumer unvis">
+                </div>
             </>
             
         }
