@@ -33,12 +33,14 @@ use crate::utils::dom::get_window;
 #[derive(Clone, PartialEq)]
 pub struct CameraEncoder {
     state: EncoderState,
+    device: Option<MediaStream>,
 }
 
 impl CameraEncoder {
     pub fn new() -> Self {
         Self {
             state: EncoderState::new(),
+            device: None,
         }
     }
 
@@ -49,6 +51,12 @@ impl CameraEncoder {
     pub fn get_enabled(&self) -> bool {
         self.state.is_enabled()
     }
+    pub fn is_first(&self) -> bool {
+        self.state.is_first()
+    }
+    pub fn set_first(&mut self, is_first: bool) {
+        self.state.set_first(is_first);
+    }
     pub fn select(&mut self, device: String) -> bool {
         self.state.select(device)
     }
@@ -56,11 +64,48 @@ impl CameraEncoder {
         self.state.stop()
     }
 
+    pub fn init(&self, video_elem_id: &str) {
+        let device_id = if let Some(vid) = &self.state.selected {
+            vid.to_string()
+        } else {
+            return;
+        };
+        let video_elem_id = video_elem_id.to_string();
+        wasm_bindgen_futures::spawn_local(async move {
+            let navigator = get_window().unwrap().navigator();
+            let video_element = get_window().unwrap()
+                .document()
+                .unwrap()
+                .get_element_by_id(&video_elem_id)
+                .unwrap()
+                .unchecked_into::<HtmlVideoElement>();
+
+            let media_devices = navigator.media_devices().unwrap();
+            let mut constraints = MediaStreamConstraints::new();
+            let mut media_info = web_sys::MediaTrackConstraints::new();
+            media_info.device_id(&device_id.into());
+
+            constraints.video(&media_info.into());
+            constraints.audio(&Boolean::from(false));
+
+            let devices_query = media_devices
+                .get_user_media_with_constraints(&constraints)
+                .unwrap();
+            let device = JsFuture::from(devices_query)
+                .await
+                .unwrap()
+                .unchecked_into::<MediaStream>();
+            video_element.set_src_object(Some(&device));
+            video_element.set_muted(true);
+        });
+    }
+
     pub fn start(
         &mut self,
         on_frame: impl Fn(VideoPacket) + 'static,
         video_elem_id: &str,
     ) {
+        self.init(video_elem_id);
         let on_frame = Box::new(on_frame);
         let video_elem_id = video_elem_id.to_string();
         let EncoderState {
@@ -109,7 +154,7 @@ impl CameraEncoder {
                 .unwrap()
                 .unchecked_into::<MediaStream>();
             video_element.set_src_object(Some(&device));
-            video_element.set_muted(true);
+            video_element.set_muted(true);           
 
             let video_track = Box::new(
                 device

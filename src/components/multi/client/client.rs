@@ -102,10 +102,18 @@ pub fn item_content() -> Html {
 
 #[function_component(Client)]
 pub fn client() -> Html {
-    let (_state, dispatch) = use_store::<ClientStore>();
+    let (state, dispatch) = use_store::<ClientStore>();
     use_effect({
         let dispatch = dispatch.clone();
         move || {
+            match state.get_client_manager() {
+                Some(_) => {
+                    log::error!("clent manager");
+                }
+                None => {
+                    log::error!("none clent manager");
+                }
+            }
             dispatch.apply(ClientMsg::InitClientManager);
         }
     });

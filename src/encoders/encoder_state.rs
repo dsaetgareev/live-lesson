@@ -8,6 +8,7 @@ pub struct EncoderState {
     pub(super) enabled: Rc<RefCell<bool>>,
     pub(super) selected: Option<String>,
     pub(super) switching: Rc<RefCell<bool>>,
+    pub(super) is_first: Rc<RefCell<bool>>,
 }
 
 impl EncoderState {
@@ -17,6 +18,7 @@ impl EncoderState {
             enabled: Rc::new(RefCell::new(true)),
             selected: None,
             switching: Rc::new(RefCell::new(false)),
+            is_first: Rc::new(RefCell::new(true)),
         }
     }
 
@@ -32,6 +34,14 @@ impl EncoderState {
 
     pub fn is_enabled(&self) -> bool {
         *self.enabled.borrow()
+    }
+
+    pub fn is_first(&self) -> bool {
+        *self.is_first.borrow()
+    }
+
+    pub fn set_first(&mut self, is_first: bool) {
+        self.is_first = Rc::new(RefCell::new(is_first));
     }
 
     pub fn select(&mut self, device: String) -> bool {

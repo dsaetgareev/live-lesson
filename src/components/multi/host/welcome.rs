@@ -2,10 +2,10 @@ use std::str::FromStr;
 
 use wasm_peers::{SessionId, get_random_session_id};
 use web_sys::MouseEvent;
-use yew::{ html, function_component, Html, use_state};
+use yew::{ html, function_component, Html, use_state, Callback};
 use yewdux::prelude::use_store;
 
-use crate::{components::multi::host::host::{Host, HostVideo, Devices}, utils, stores::host_store::{HostStore, self}};
+use crate::{components::multi::host::host::{Host, HostVideo}, utils, stores::{host_store::{HostStore, self}, media_store::{HostMediaMsg, MediaStore}}, media_devices::device_selector::DeviceSelector};
 
 
 #[function_component(WelcomeHost)]
@@ -60,5 +60,27 @@ pub fn welcome_host() -> Html {
             </>
             
         }
+    }
+}
+
+#[function_component(Devices)]
+pub fn devices() -> Html {
+    let (_state, dispatch) = use_store::<MediaStore>();
+    let mic_callback: Callback<String> = {
+        let dispatch = dispatch.clone();
+        Callback::from(move |audio| {
+            dispatch.apply(HostMediaMsg::AudioDeviceInit(audio))
+        })
+    };
+    let cam_callback = {
+        let dispatch = dispatch.clone();
+        Callback::from(move |video| {
+            dispatch.apply(HostMediaMsg::VideoDeviceInit(video));
+        })
+    };
+    html! {
+        <>
+            <DeviceSelector on_microphone_select={mic_callback} on_camera_select={cam_callback}/>
+        </>
     }
 }
