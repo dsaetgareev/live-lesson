@@ -53,7 +53,7 @@ pub fn welcome_host() -> Html {
                 <ClientVideo />
                 <button onclick={ on_init }>
                     { 
-                        "Заходи дорогой!"
+                        "Подключиться к встрече"
                     }                    
                 </button>
                 <Devices />

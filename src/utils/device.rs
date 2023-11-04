@@ -176,6 +176,8 @@ fn create_video_element(video_elem_id: String, el_kind: VideoElementKind) -> Htm
                     video_element.set_id(&video_elem_id);
                     video_element.set_class_name("item-canvas");
                     video_element.set_autoplay(true);
+                    let div = get_element("content-item").unwrap();
+                    let _ = div.append_child(&video_element);
                     video_element
                 },
             };
