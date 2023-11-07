@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, cell::RefCell};
 use wasm_peers::{SessionId, one_to_many::MiniClient, many_to_many::NetworkManager};
 use yewdux::{store::{Store, Reducer}, prelude::Dispatch};
 
@@ -9,7 +9,7 @@ use super::{client_props_store::{ClientPropsStore, ClientPropsMsg}, host_props_s
 #[derive(Clone, PartialEq, Store)]
 pub struct ClientStore {
     session_id: Option<SessionId>,
-    client_manager: Option<ClientManager>,
+    client_manager: Option<Rc<RefCell<ClientManager>>>,
     audio: Option<Audio>,
 }
 
@@ -27,10 +27,10 @@ impl ClientStore {
     pub fn init(&mut self, session_id: SessionId) {
         self.session_id = Some(session_id);
         let client_manager = ClientManager::new(session_id);
-        self.client_manager = Some(client_manager);
+        self.client_manager = Some(Rc::new(RefCell::new(client_manager)));
     }
 
-    pub fn get_client_manager(&self) -> Option<ClientManager> {
+    pub fn get_client_manager(&self) -> Option<Rc<RefCell<ClientManager>>> {
         self.client_manager.clone()
     }
 
@@ -38,6 +38,7 @@ impl ClientStore {
         self.client_manager
             .as_ref()
             .expect("cannot get the client manager")
+            .borrow()
             .mini_client
             .clone()
     }
@@ -46,6 +47,7 @@ impl ClientStore {
         self.client_manager
             .as_ref()
             .expect("cannot get the networr manager")
+            .borrow()
             .network_manager
             .clone()
     }
@@ -91,6 +93,8 @@ impl Reducer<ClientStore> for ClientMsg {
         match self {
             ClientMsg::Init(session_id) => {
                 state.init(session_id);
+                let cm = state.get_client_manager();
+                media_dispatch.apply(ClientMediaMsg::Init(cm));
             }
             ClientMsg::InitClientManager => {
                 log::error!("init client manager");
@@ -98,8 +102,8 @@ impl Reducer<ClientStore> for ClientMsg {
                 let on_action = move |msg: ClientMsg| {
                     dispatch.apply(msg);
                 };
-                state.get_client_manager().unwrap().init(on_action);
-                state.get_client_manager().unwrap().many_init();
+                state.get_client_manager().unwrap().borrow_mut().init(on_action);
+                state.get_client_manager().unwrap().borrow_mut().many_init();
             }
             ClientMsg::SendStateToHost => {
                 client_props_dispatch.apply(ClientPropsMsg::SendStateToHost);

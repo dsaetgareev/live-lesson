@@ -90,8 +90,8 @@ pub fn host_video() -> Html {
     html! {
         <>
             <div class="btn-container">
-                <VideoButton on_btn={ on_video_btn } enabled={ *video_enabled }/>
-                <AudioButton on_btn={ on_audio_btn } enabled={ *audio_enabled }/>
+                <VideoButton key={&*video_enabled.to_string()} on_btn={ on_video_btn } enabled={ *video_enabled }/>
+                <AudioButton key={&*audio_enabled.to_string()} on_btn={ on_audio_btn } enabled={ *audio_enabled }/>
             </div>            
             <VideoBox 
                 video_id={ VIDEO_ELEMENT_ID }

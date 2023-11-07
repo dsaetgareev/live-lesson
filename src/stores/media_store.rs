@@ -4,7 +4,7 @@ use gloo_timers::callback::Timeout;
 use wasm_peers::{UserId, one_to_many::MiniServer};
 use yewdux::{store::{Store, Reducer}, prelude::Dispatch};
 
-use crate::{encoders::{camera_encoder::CameraEncoder, microphone_encoder::MicrophoneEncoder, screen_encoder::ScreenEncoder}, stores::client_store::{ClientStore, ClientMsg}, utils::{inputs::{ManyMassage, ClientMessage, Message}, dom::{on_visible_el, switch_visible_el}}, models::packet::{AudioPacket, VideoPacket}, constants::VIDEO_ELEMENT_ID, components::multi::host::host_manager::HostManager};
+use crate::{encoders::{camera_encoder::CameraEncoder, microphone_encoder::MicrophoneEncoder, screen_encoder::ScreenEncoder}, stores::client_store::{ClientStore, ClientMsg}, utils::{inputs::{ManyMassage, ClientMessage, Message}, dom::{on_visible_el, switch_visible_el}}, models::packet::{AudioPacket, VideoPacket}, constants::VIDEO_ELEMENT_ID, components::multi::{host::host_manager::HostManager, client::client_manager::ClientManager}};
 
 use super::host_store::{HostStore, self};
 
@@ -18,6 +18,7 @@ pub struct MediaStore {
     is_communication: Rc<RefCell<bool>>,
     is_screen: Rc<RefCell<bool>>,
     host_manager: Option<Rc<RefCell<HostManager>>>,
+    client_manager: Option<Rc<RefCell<ClientManager>>>,
 }
 
 impl Default for MediaStore {
@@ -29,13 +30,18 @@ impl Default for MediaStore {
             is_communication: Rc::new(RefCell::new(true)),
             is_screen: Rc::new(RefCell::new(false)),
             host_manager: None,
+            client_manager: None,
         }
     }
 }
 
 impl MediaStore {
-    pub fn init(&mut self, host_manager: Option<Rc<RefCell<HostManager>>>) {
+    pub fn init_host(&mut self, host_manager: Option<Rc<RefCell<HostManager>>>) {
         self.host_manager = host_manager;
+    }
+
+    pub fn init_client(&mut self, client_manager: Option<Rc<RefCell<ClientManager>>>) {
+        self.client_manager = client_manager;
     }
 
     pub fn get_mini_server(&self) -> MiniServer {
@@ -105,7 +111,7 @@ impl Reducer<MediaStore> for HostMediaMsg {
                 let _ = state.get_mut_microphone().select(audio);
             }
             HostMediaMsg::Init(host_manager) => {
-                state.init(host_manager);
+                state.init_host(host_manager);
             }
             HostMediaMsg::AudioDeviceChanged(audio) => {
                 if state.get_mut_microphone().select(audio) || state.get_microphone().is_first() {
@@ -134,7 +140,7 @@ impl Reducer<MediaStore> for HostMediaMsg {
             },
             HostMediaMsg::SwitchMic(on_mic) => {
                 state.get_mut_microphone().set_enabled(on_mic);
-                if on_mic {
+                if on_mic && state.host_manager.is_some() {
                     let timeout = Timeout::new(1000, move || {
                         dispatch.apply(HostMediaMsg::EnableMicrophone(true));
                     });
@@ -179,16 +185,19 @@ impl Reducer<MediaStore> for HostMediaMsg {
                 state.get_mut_camera().set_enabled(on_video);
                 let is_video = !state.get_camera().get_enabled();
                 on_visible_el(is_video, VIDEO_ELEMENT_ID, "video-logo");
-                let message = Message::HostSWitchSelfVideo { message: on_video };
-                global_dispatch.apply(host_store::Msg::SendMessage(message));
-                
-                if state.get_camera().get_enabled() {
-                    let dispatch = dispatch.clone();
-                    let timeout = Timeout::new(1000, move || {
-                        dispatch.apply(HostMediaMsg::EnableVideo(true));
-                    });
-                    timeout.forget();
+                if state.host_manager.is_some() {
+                    let message = Message::HostSWitchSelfVideo { message: on_video };
+                    global_dispatch.apply(host_store::Msg::SendMessage(message));
+                    
+                    if state.get_camera().get_enabled() {
+                        let dispatch = dispatch.clone();
+                        let timeout = Timeout::new(1000, move || {
+                            dispatch.apply(HostMediaMsg::EnableVideo(true));
+                        });
+                        timeout.forget();
+                    }
                 }
+                
             },
             HostMediaMsg::EnableScreenShare(should_enable) => {
                 if should_enable {     
@@ -241,6 +250,7 @@ impl Reducer<MediaStore> for HostMediaMsg {
 
 
 pub enum ClientMediaMsg {
+    Init(Option<Rc<RefCell<ClientManager>>>),
     AudioDeviceInit(String),
     AudioDeviceChanged(String),
     EnableMicrophone(bool),
@@ -259,6 +269,9 @@ impl Reducer<MediaStore> for ClientMediaMsg {
         let dispatch = Dispatch::<MediaStore>::new();
         let global_dispatch = Dispatch::<ClientStore>::new();
         match self {
+            ClientMediaMsg::Init(client_manager) => {
+                state.init_client(client_manager);
+            }
             ClientMediaMsg::AudioDeviceInit(audio) => {
                 let _ = state.get_mut_microphone().select(audio);
             }
@@ -296,7 +309,7 @@ impl Reducer<MediaStore> for ClientMediaMsg {
             },
             ClientMediaMsg::SwitchMic(on_mic) => {
                 state.get_mut_microphone().set_enabled(on_mic);
-                if on_mic {
+                if on_mic && state.client_manager.is_some() {
                     let timeout = Timeout::new(1000, move || {
                         dispatch.apply(ClientMediaMsg::EnableMicrophone(true));
                     });
@@ -347,16 +360,18 @@ impl Reducer<MediaStore> for ClientMediaMsg {
                 state.get_mut_camera().set_enabled(on_video);
                 let is_video = !state.get_camera().get_enabled();
                 on_visible_el(is_video, VIDEO_ELEMENT_ID, "video-logo");
-                let message = ClientMessage::ClientSwitchVideo { message: is_video };
-                global_dispatch.apply(ClientMsg::SendMessage(message));
-                
-                if state.get_camera().get_enabled() {
-                    let dispatch = dispatch.clone();
-                    let timeout = Timeout::new(1000, move || {
-                        dispatch.apply(ClientMediaMsg::EnableVideo(true));
-                    });
-                    timeout.forget();
-                }
+                if state.client_manager.is_some() {
+                    let message = ClientMessage::ClientSwitchVideo { message: is_video };
+                    global_dispatch.apply(ClientMsg::SendMessage(message));
+                    
+                    if state.get_camera().get_enabled() {
+                        let dispatch = dispatch.clone();
+                        let timeout = Timeout::new(1000, move || {
+                            dispatch.apply(ClientMediaMsg::EnableVideo(true));
+                        });
+                        timeout.forget();
+                    }
+                }                
             },
             ClientMediaMsg::OnCummunication(message) => {
                 switch_visible_el(message, "video-box");
