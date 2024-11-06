@@ -47,6 +47,38 @@ pub fn home() -> Html {
         })
     };
 
+    let start_as_host_table = {
+        let session_id = session_id.clone();
+        if session_id.is_empty() {
+            session_id.set(uuid::Uuid::from_u128(get_random_session_id().inner()).to_string());
+        }
+        let navigator = navigator.clone();
+        Callback::from(move |_event| {
+            navigator
+                .push_with_query(
+                    &Route::Table,
+                    &GameQuery::new((*session_id).clone(), true),
+                )
+                .unwrap();
+        })
+    };
+
+    let start_as_host_document = {
+        let session_id = session_id.clone();
+        if session_id.is_empty() {
+            session_id.set(uuid::Uuid::from_u128(get_random_session_id().inner()).to_string());
+        }
+        let navigator = navigator.clone();
+        Callback::from(move |_event| {
+            navigator
+                .push_with_query(
+                    &Route::Document,
+                    &GameQuery::new((*session_id).clone(), true),
+                )
+                .unwrap();
+        })
+    };
+
     html! {
         <div class="cover-container d-flex w-100 h-100 p-3 mx-auto flex-column">
             <header class="mb-auto">
@@ -64,6 +96,21 @@ pub fn home() -> Html {
                     </button>
                 </p>
                
+                <hr />
+                
+                <p class="lead">
+                    <button onclick={ start_as_host_table } class="btn btn-lg btn-secondary fw-bold border-white">
+                        { "Создать таблицу" }
+                    </button>
+                </p>
+
+                <hr />
+                
+                <p class="lead">
+                    <button onclick={ start_as_host_document } class="btn btn-lg btn-secondary fw-bold border-white">
+                        { "Создать документ" }
+                    </button>
+                </p>
                 
             </main>
 
